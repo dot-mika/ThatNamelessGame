@@ -46,6 +46,8 @@ app.*.map.json
 
 
 assets/**
-/specifications/license_ui.md
-/specifications/license.md
-/specifications/images/**
+/docs/license_ui.md
+/docs/license.md
+/docs/specifications_jp.md
+/docs/specifications_en.md
+/docs/images/**
