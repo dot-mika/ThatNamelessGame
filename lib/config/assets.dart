@@ -1,31 +1,32 @@
 class Assets {
   Assets._();
 
-  // ── home ──────────────────────────────────────────
-  static const String backgroundRainbow = 'assets/home/background_rainbow.png';
-  static const String settingsIcon = 'assets/home/settings.png';
-  static const String star = 'assets/home/star.png';
+  // home
+  static const String _homePrefix = 'assets/home/';
 
-  static String rules(String lang) => 'assets/home/$lang/rules_$lang.png';
-  static String titleLogo(String lang) =>
-      'assets/home/$lang/title_logo_$lang.png';
-  static String play2(String lang) => 'assets/home/$lang/play_2_$lang.png';
-  static String play1Easy(String lang) =>
-      'assets/home/$lang/play_1_easy_$lang.png';
-  static String play1Normal(String lang) =>
-      'assets/home/$lang/play_1_normal_$lang.png';
-  static String play1Hard(String lang) =>
-      'assets/home/$lang/play_1_hard_$lang.png';
+  static const String backgroundRainbow = '${_homePrefix}background_rainbow.png';
+  static const String settingsIcon = '${_homePrefix}settings.png';
+  static const String star = '${_homePrefix}star.png';
 
-  // ── settings ──────────────────────────────────────
-  static const String settingsBackground =
-      'assets/settings/background_settings.png';
-  static const String settingsHome = 'assets/settings/settings_home.png';
+  static String rules(String lang) => '$_homePrefix$lang/rules_$lang.png';
+  static String titleLogo(String lang) => '$_homePrefix$lang/title_logo_$lang.png';
+  static String play2(String lang) => '$_homePrefix$lang/play_2_$lang.png';
+  static String play1Easy(String lang) => '$_homePrefix$lang/play_1_easy_$lang.png';
+  static String play1Normal(String lang) => '$_homePrefix$lang/play_1_normal_$lang.png';
+  static String play1Hard(String lang) => '$_homePrefix$lang/play_1_hard_$lang.png';
 
-  // ── audio ─────────────────────────────────────────
-  static const String bgm = 'audio/bgm/bgm.mp3';
+  // settings
+  static const String _settingsPrefix = 'assets/settings/';
 
-  static const String _sePrefix = 'audio/se/';
+  static const String settingsBackground = '${_settingsPrefix}background_settings.png';
+  static const String settingsHome = '${_settingsPrefix}settings_home.png';
+
+  // audio
+  static const String _audioPrefix = 'audio/';
+
+  static const String bgm = '${_audioPrefix}bgm/bgm.mp3';
+
+  static const String _sePrefix = '${_audioPrefix}se/';
 
   static const String seTapButton = '${_sePrefix}tap_button.mp3';
   static const String seTapHand = '${_sePrefix}tap_hand.mp3';

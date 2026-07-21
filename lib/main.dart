@@ -3,11 +3,7 @@ import 'package:flutter/services.dart';
 import 'config/config.dart';
 import 'infrastructure/audio_manager.dart';
 import 'infrastructure/settings_repository.dart';
-import 'presentation/app_routes.dart';
 import 'presentation/home/home_screen.dart';
-import 'presentation/play/play_screen.dart';
-import 'presentation/rules/rules_screen.dart';
-import 'presentation/settings/settings_screen.dart';
 import 'state/settings_notifier.dart';
 
 Future<void> main() async {
@@ -52,21 +48,7 @@ class MyApp extends StatelessWidget {
           ),
         );
       },
-      initialRoute: '/',
-      onGenerateRoute: (settings) {
-        switch (settings.name) {
-          case '/':
-            return noAnimationRoute(const HomeScreen());
-          case '/settings':
-            return noAnimationRoute(const SettingsScreen());
-          case '/rules':
-            return noAnimationRoute(const RulesScreen());
-          case '/play':
-            final mode = settings.arguments as PlayMode;
-            return slideFromRightRoute(PlayScreen(mode: mode));
-        }
-        return null;
-      },
+      home: const HomeScreen(),
     );
   }
 }
@@ -75,11 +57,11 @@ late final SettingsRepository settingsRepository;
 late final AudioManager audioManager;
 late final SettingsNotifier settingsNotifier;
 
-/// main() から runApp 前に呼ぶ。設定の読み込みと音声のプリロードをここで行う。
+/// main() から runApp 前に呼ぶ。設定の読み込みと音声のプリロードをここで行う
 Future<void> initServices() async {
   settingsRepository = SettingsRepository();
   await settingsRepository.init();
-
+  
   audioManager = AudioManager();
   await audioManager.preload();
 

@@ -7,7 +7,7 @@ class AppConfig {
   static const double canvasWidth = 1280;
   static const double canvasHeight = 720;
 
-  /// 連打対策(DebouncedTap)のクールダウン。この間隔より短い再タップは無視する。
+  /// 連打対策のクールダウンタイム
   static const Duration tapCooldown = Duration(milliseconds: 500);
 
   /// BGM の再生音量(0.0〜1.0)。SE(常に1.0)より相対的に控えめにする
@@ -35,10 +35,8 @@ class AppColors {
   static const Color white = Color(0xFFFFFFFF);
 }
 
-/// プレイモード
 enum PlayMode { twoPlayer, easy, normal, hard }
 
-/// 2人プレイの時間制限の選択肢(仕様書「時間制限」)。固定8択のクローズドな集合。
 enum TwoPlayerTimeLimit {
   seconds5(5),
   seconds10(10),
@@ -47,18 +45,18 @@ enum TwoPlayerTimeLimit {
   seconds30(30),
   seconds45(45),
   seconds60(60),
-  unlimited(null);
+  unlimited(-1);
 
   const TwoPlayerTimeLimit(this.seconds);
 
-  final int? seconds;
+  final int seconds;
 
   static const TwoPlayerTimeLimit defaultValue = seconds15;
 }
 
 
-class TimeLimits {
-  TimeLimits._();
+class OnePlayerTimeLimit {
+  OnePlayerTimeLimit._();
 
   static const int easySeconds = 30;
   static const int normalSeconds = 15;

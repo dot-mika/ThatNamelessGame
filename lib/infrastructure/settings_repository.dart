@@ -2,7 +2,6 @@ import 'dart:ui';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/config.dart';
 
-/// SharedPreferences のラッパー。永続化するキーは8個(仕様書「ゲーム全体を通して」)。
 class SettingsRepository {
   static const _keyLanguage = 'language';
   static const _keyBgmOn = 'bgmOn';
@@ -44,13 +43,11 @@ class SettingsRepository {
     return TwoPlayerTimeLimit.values.byName(saved);
   }
 
-  Future<void> setTwoPlayerTimeLimit(TwoPlayerTimeLimit value) =>
-      _prefs.setString(_keyTwoPlayerTimeLimit, value.name);
+  Future<void> setTwoPlayerTimeLimit(TwoPlayerTimeLimit value) => _prefs.setString(_keyTwoPlayerTimeLimit, value.name);
 
   bool get starTwoPlayer => _prefs.getBool(_keyStarTwoPlayer) ?? false;
 
-  Future<void> setStarTwoPlayer(bool value) =>
-      _prefs.setBool(_keyStarTwoPlayer, value);
+  Future<void> setStarTwoPlayer(bool value) => _prefs.setBool(_keyStarTwoPlayer, value);
 
   bool get starEasy => _prefs.getBool(_keyStarEasy) ?? false;
 
@@ -58,8 +55,7 @@ class SettingsRepository {
 
   bool get starNormal => _prefs.getBool(_keyStarNormal) ?? false;
 
-  Future<void> setStarNormal(bool value) =>
-      _prefs.setBool(_keyStarNormal, value);
+  Future<void> setStarNormal(bool value) => _prefs.setBool(_keyStarNormal, value);
 
   bool get starHard => _prefs.getBool(_keyStarHard) ?? false;
 

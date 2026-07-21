@@ -7,8 +7,6 @@ import '../../main.dart';
 import '../widgets/debounced_tap.dart';
 import '../widgets/navigation_tap.dart';
 
-/// 設定画面(仕様書「設定画面」)。
-/// 「2人プレイの時間制限」「効果音のON/OFF」「BGMのON/OFF」「言語」を設定する。
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
@@ -33,7 +31,7 @@ class SettingsScreen extends StatelessWidget {
                 left: 160,
                 top: 185,
                 child: _label(
-                  '☆ ${SettingsStrings.of('twoPlayerTimeLimit', lang)}',
+                  SettingsStrings.of('twoPlayerTimeLimit', lang),
                   fontSize: 48,
                 ),
               ),
@@ -45,7 +43,7 @@ class SettingsScreen extends StatelessWidget {
               Positioned(
                 left: 160,
                 top: 390,
-                child: _label('☆ ${SettingsStrings.of('seOnOff', lang)}', fontSize: 48),
+                child: _label(SettingsStrings.of('seOnOff', lang), fontSize: 48),
               ),
               Positioned(
                 left: 885,
@@ -59,7 +57,7 @@ class SettingsScreen extends StatelessWidget {
               Positioned(
                 left: 160,
                 top: 500,
-                child: _label('☆ ${SettingsStrings.of('bgmOnOff', lang)}', fontSize: 48),
+                child: _label(SettingsStrings.of('bgmOnOff', lang), fontSize: 48),
               ),
               Positioned(
                 left: 885,
@@ -73,7 +71,7 @@ class SettingsScreen extends StatelessWidget {
               Positioned(
                 left: 160,
                 top: 610,
-                child: _label('☆ ${SettingsStrings.of('language', lang)}', fontSize: 48),
+                child: _label(SettingsStrings.of('language', lang), fontSize: 48),
               ),
               Positioned(
                 left: 843,
@@ -218,7 +216,7 @@ class _OnOffSelector extends StatelessWidget {
         children: [
           Expanded(
             child: _SegmentPill(
-              label: SettingsStrings.on,
+              label: SettingsStrings.of('on', lang),
               isSelected: value,
               onTap: () {
                 audioManager.playSe(Se.tapButton);
@@ -230,7 +228,7 @@ class _OnOffSelector extends StatelessWidget {
           ),
           Expanded(
             child: _SegmentPill(
-              label: SettingsStrings.off,
+              label: SettingsStrings.of('off', lang),
               isSelected: !value,
               onTap: () {
                 audioManager.playSe(Se.tapButton);
@@ -267,8 +265,8 @@ class _LanguageSelector extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(child: _pill('jp', SettingsStrings.japanese)),
-          Expanded(child: _pill('en', SettingsStrings.english)),
+          Expanded(child: _pill('jp', SettingsStrings.of('japanese', lang))),
+          Expanded(child: _pill('en', SettingsStrings.of('english', lang))),
         ],
       ),
     );
