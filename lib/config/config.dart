@@ -50,15 +50,22 @@ enum TwoPlayerTimeLimit {
   const TwoPlayerTimeLimit(this.seconds);
 
   final int seconds;
-
-  static const TwoPlayerTimeLimit defaultValue = seconds15;
 }
 
+/// SettingsRepository の初期値をまとめて持つクラス。
+class SettingsDefaults {
+  SettingsDefaults._();
 
-class OnePlayerTimeLimit {
-  OnePlayerTimeLimit._();
+  static const bool bgmOn = true;
+  static const bool seOn = true;
+  static const TwoPlayerTimeLimit twoPlayerTimeLimit = TwoPlayerTimeLimit.seconds15;
+  static const bool starTwoPlayer = false;
+  static const bool starEasy = false;
+  static const bool starNormal = false;
+  static const bool starHard = false;
 
-  static const int easySeconds = 30;
-  static const int normalSeconds = 15;
-  static const int hardSeconds = 5;
+  // 1人プレイの制限時間(秒)
+  static const int oneEasySeconds = 30;
+  static const int oneNormalSeconds = 15;
+  static const int oneHardSeconds = 5;
 }

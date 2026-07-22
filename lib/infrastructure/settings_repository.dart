@@ -29,35 +29,35 @@ class SettingsRepository {
 
   Future<void> setLanguage(String lang) => _prefs.setString(_keyLanguage, lang);
 
-  bool get bgmOn => _prefs.getBool(_keyBgmOn) ?? true;
+  bool get bgmOn => _prefs.getBool(_keyBgmOn) ?? SettingsDefaults.bgmOn;
 
   Future<void> setBgmOn(bool value) => _prefs.setBool(_keyBgmOn, value);
 
-  bool get seOn => _prefs.getBool(_keySeOn) ?? true;
+  bool get seOn => _prefs.getBool(_keySeOn) ?? SettingsDefaults.seOn;
 
   Future<void> setSeOn(bool value) => _prefs.setBool(_keySeOn, value);
 
   TwoPlayerTimeLimit get twoPlayerTimeLimit {
     final saved = _prefs.getString(_keyTwoPlayerTimeLimit);
-    if (saved == null) return TwoPlayerTimeLimit.defaultValue;
+    if (saved == null) return SettingsDefaults.twoPlayerTimeLimit;
     return TwoPlayerTimeLimit.values.byName(saved);
   }
 
   Future<void> setTwoPlayerTimeLimit(TwoPlayerTimeLimit value) => _prefs.setString(_keyTwoPlayerTimeLimit, value.name);
 
-  bool get starTwoPlayer => _prefs.getBool(_keyStarTwoPlayer) ?? false;
+  bool get starTwoPlayer => _prefs.getBool(_keyStarTwoPlayer) ?? SettingsDefaults.starTwoPlayer;
 
   Future<void> setStarTwoPlayer(bool value) => _prefs.setBool(_keyStarTwoPlayer, value);
 
-  bool get starEasy => _prefs.getBool(_keyStarEasy) ?? false;
+  bool get starEasy => _prefs.getBool(_keyStarEasy) ?? SettingsDefaults.starEasy;
 
   Future<void> setStarEasy(bool value) => _prefs.setBool(_keyStarEasy, value);
 
-  bool get starNormal => _prefs.getBool(_keyStarNormal) ?? false;
+  bool get starNormal => _prefs.getBool(_keyStarNormal) ?? SettingsDefaults.starNormal;
 
   Future<void> setStarNormal(bool value) => _prefs.setBool(_keyStarNormal, value);
 
-  bool get starHard => _prefs.getBool(_keyStarHard) ?? false;
+  bool get starHard => _prefs.getBool(_keyStarHard) ?? SettingsDefaults.starHard;
 
   Future<void> setStarHard(bool value) => _prefs.setBool(_keyStarHard, value);
 }
