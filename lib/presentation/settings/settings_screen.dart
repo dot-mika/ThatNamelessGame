@@ -1,91 +1,88 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/assets.dart';
 import '../../config/config.dart';
 import '../../config/settings_strings.dart';
 import '../../infrastructure/audio_manager.dart';
-import '../../main.dart';
+import '../../state/providers.dart';
 import '../widgets/debounced_tap.dart';
 import '../widgets/navigation_tap.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsNotifierProvider);
+    final lang = settings.language;
     return Scaffold(
-      body: ListenableBuilder(
-        listenable: settingsNotifier,
-        builder: (context, _) {
-          final lang = settingsNotifier.language;
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: Image.asset(Assets.settingsBackground, fit: BoxFit.cover),
-              ),
-              Positioned(
-                left: 110,
-                top: 60,
-                child: _label(SettingsStrings.of('settingsTitle', lang), fontSize: 64),
-              ),
-              Positioned(
-                left: 160,
-                top: 185,
-                child: _label(
-                  SettingsStrings.of('twoPlayerTimeLimit', lang),
-                  fontSize: 48,
-                ),
-              ),
-              Positioned(
-                left: 314,
-                top: 265,
-                child: _TimeLimitSelector(lang: lang),
-              ),
-              Positioned(
-                left: 160,
-                top: 390,
-                child: _label(SettingsStrings.of('seOnOff', lang), fontSize: 48),
-              ),
-              Positioned(
-                left: 885,
-                top: 375,
-                child: _OnOffSelector(
-                  lang: lang,
-                  value: settingsNotifier.seOn,
-                  onChanged: (value) => settingsNotifier.setSeOn(value),
-                ),
-              ),
-              Positioned(
-                left: 160,
-                top: 500,
-                child: _label(SettingsStrings.of('bgmOnOff', lang), fontSize: 48),
-              ),
-              Positioned(
-                left: 885,
-                top: 485,
-                child: _OnOffSelector(
-                  lang: lang,
-                  value: settingsNotifier.bgmOn,
-                  onChanged: (value) => settingsNotifier.setBgmOn(value),
-                ),
-              ),
-              Positioned(
-                left: 160,
-                top: 610,
-                child: _label(SettingsStrings.of('language', lang), fontSize: 48),
-              ),
-              Positioned(
-                left: 843,
-                top: 595,
-                child: _LanguageSelector(lang: lang),
-              ),
-              Positioned(
-                right: 20,
-                top: 20,
-                child: _HomeButton(lang: lang),
-              ),
-            ],
-          );
-        },
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(Assets.settingsBackground, fit: BoxFit.cover),
+          ),
+          Positioned(
+            left: 110,
+            top: 60,
+            child: _label(SettingsStrings.of('settingsTitle', lang), fontSize: 64),
+          ),
+          Positioned(
+            left: 160,
+            top: 185,
+            child: _label(
+              SettingsStrings.of('twoPlayerTimeLimit', lang),
+              fontSize: 48,
+            ),
+          ),
+          Positioned(
+            left: 314,
+            top: 265,
+            child: _TimeLimitSelector(lang: lang),
+          ),
+          Positioned(
+            left: 160,
+            top: 390,
+            child: _label(SettingsStrings.of('seOnOff', lang), fontSize: 48),
+          ),
+          Positioned(
+            left: 885,
+            top: 375,
+            child: _OnOffSelector(
+              lang: lang,
+              value: settings.seOn,
+              onChanged: (value) => settings.setSeOn(value),
+            ),
+          ),
+          Positioned(
+            left: 160,
+            top: 500,
+            child: _label(SettingsStrings.of('bgmOnOff', lang), fontSize: 48),
+          ),
+          Positioned(
+            left: 885,
+            top: 485,
+            child: _OnOffSelector(
+              lang: lang,
+              value: settings.bgmOn,
+              onChanged: (value) => settings.setBgmOn(value),
+            ),
+          ),
+          Positioned(
+            left: 160,
+            top: 610,
+            child: _label(SettingsStrings.of('language', lang), fontSize: 48),
+          ),
+          Positioned(
+            left: 843,
+            top: 595,
+            child: _LanguageSelector(lang: lang),
+          ),
+          Positioned(
+            right: 20,
+            top: 20,
+            child: _HomeButton(lang: lang),
+          ),
+        ],
       ),
     );
   }
@@ -102,16 +99,16 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-class _HomeButton extends StatelessWidget {
+class _HomeButton extends ConsumerWidget {
   const _HomeButton({required this.lang});
 
   final String lang;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return NavigationTap(
       onTap: () async {
-        await audioManager.playSe(Se.tapButton);
+        await ref.read(audioManagerProvider).playSe(Se.tapButton);
         if (context.mounted) Navigator.of(context).pop();
       },
       child: Image.asset(Assets.settingsHome, width: 100, height: 100),
@@ -120,7 +117,7 @@ class _HomeButton extends StatelessWidget {
 }
 
 /// 「5s 10s 15s ... 無制限」のピル型セグメントセレクタ。
-class _TimeLimitSelector extends StatelessWidget {
+class _TimeLimitSelector extends ConsumerWidget {
   const _TimeLimitSelector({required this.lang});
 
   final String lang;
@@ -148,8 +145,8 @@ class _TimeLimitSelector extends StatelessWidget {
       _outerPadding + _numberColumnWidth * 7 + _unlimitedWidth;
 
   @override
-  Widget build(BuildContext context) {
-    final selected = settingsNotifier.twoPlayerTimeLimit;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = ref.watch(settingsNotifierProvider).twoPlayerTimeLimit;
     return Container(
       width: _width,
       height: _height,
@@ -169,8 +166,8 @@ class _TimeLimitSelector extends StatelessWidget {
             label: label,
             isSelected: isSelected,
             onTap: () {
-              audioManager.playSe(Se.tapButton);
-              settingsNotifier.setTwoPlayerTimeLimit(option);
+              ref.read(audioManagerProvider).playSe(Se.tapButton);
+              ref.read(settingsNotifierProvider).setTwoPlayerTimeLimit(option);
             },
             borderRadius: _unlimitedBorderRadius,
             diameter: isUnlimited ? null : _numberDiameter,
@@ -187,7 +184,7 @@ class _TimeLimitSelector extends StatelessWidget {
 }
 
 /// ON/OFF のピル型セグメントセレクタ(効果音・BGM共用)。
-class _OnOffSelector extends StatelessWidget {
+class _OnOffSelector extends ConsumerWidget {
   const _OnOffSelector({
     required this.lang,
     required this.value,
@@ -203,7 +200,7 @@ class _OnOffSelector extends StatelessWidget {
   static const double _diameter = 65;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       width: _width,
       height: _height,
@@ -219,7 +216,7 @@ class _OnOffSelector extends StatelessWidget {
               label: SettingsStrings.of('on', lang),
               isSelected: value,
               onTap: () {
-                audioManager.playSe(Se.tapButton);
+                ref.read(audioManagerProvider).playSe(Se.tapButton);
                 onChanged(true);
               },
               borderRadius: 40,
@@ -231,7 +228,7 @@ class _OnOffSelector extends StatelessWidget {
               label: SettingsStrings.of('off', lang),
               isSelected: !value,
               onTap: () {
-                audioManager.playSe(Se.tapButton);
+                ref.read(audioManagerProvider).playSe(Se.tapButton);
                 onChanged(false);
               },
               borderRadius: 40,
@@ -245,7 +242,7 @@ class _OnOffSelector extends StatelessWidget {
 }
 
 /// 「日本語 / English」のピル型セグメントセレクタ。
-class _LanguageSelector extends StatelessWidget {
+class _LanguageSelector extends ConsumerWidget {
   const _LanguageSelector({required this.lang});
 
   final String lang;
@@ -254,7 +251,7 @@ class _LanguageSelector extends StatelessWidget {
   static const double _height = 80;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       width: _width,
       height: _height,
@@ -265,20 +262,20 @@ class _LanguageSelector extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(child: _pill('jp', SettingsStrings.of('japanese', lang))),
-          Expanded(child: _pill('en', SettingsStrings.of('english', lang))),
+          Expanded(child: _pill(ref, 'jp', SettingsStrings.of('japanese', lang))),
+          Expanded(child: _pill(ref, 'en', SettingsStrings.of('english', lang))),
         ],
       ),
     );
   }
 
-  Widget _pill(String code, String label) {
+  Widget _pill(WidgetRef ref, String code, String label) {
     return _SegmentPill(
       label: label,
       isSelected: lang == code,
       onTap: () {
-        audioManager.playSe(Se.tapButton);
-        settingsNotifier.setLanguage(code);
+        ref.read(audioManagerProvider).playSe(Se.tapButton);
+        ref.read(settingsNotifierProvider).setLanguage(code);
       },
       borderRadius: 40,
       verticalMargin: 5,

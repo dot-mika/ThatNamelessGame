@@ -18,8 +18,20 @@ class SettingsRepository {
     _prefs = await SharedPreferences.getInstance();
   }
 
+  // 端末に旧バージョン由来の型違いの値が残っている場合があるため、
+  // getString()/getBool() の型キャスト例外を避けて安全に読む。
+  String? _getString(String key) {
+    final value = _prefs.get(key);
+    return value is String ? value : null;
+  }
+
+  bool? _getBool(String key) {
+    final value = _prefs.get(key);
+    return value is bool ? value : null;
+  }
+
   String get language {
-    final saved = _prefs.getString(_keyLanguage);
+    final saved = _getString(_keyLanguage);
     if (saved != null) return saved;
     // 初回起動: 端末の設定言語が日本語ならjp、それ以外はen
     return PlatformDispatcher.instance.locale.languageCode == 'ja'
@@ -29,35 +41,38 @@ class SettingsRepository {
 
   Future<void> setLanguage(String lang) => _prefs.setString(_keyLanguage, lang);
 
-  bool get bgmOn => _prefs.getBool(_keyBgmOn) ?? SettingsDefaults.bgmOn;
+  bool get bgmOn => _getBool(_keyBgmOn) ?? SettingsDefaults.bgmOn;
 
   Future<void> setBgmOn(bool value) => _prefs.setBool(_keyBgmOn, value);
 
-  bool get seOn => _prefs.getBool(_keySeOn) ?? SettingsDefaults.seOn;
+  bool get seOn => _getBool(_keySeOn) ?? SettingsDefaults.seOn;
 
   Future<void> setSeOn(bool value) => _prefs.setBool(_keySeOn, value);
 
   TwoPlayerTimeLimit get twoPlayerTimeLimit {
-    final saved = _prefs.getString(_keyTwoPlayerTimeLimit);
+    final saved = _getString(_keyTwoPlayerTimeLimit);
     if (saved == null) return SettingsDefaults.twoPlayerTimeLimit;
-    return TwoPlayerTimeLimit.values.byName(saved);
+    return TwoPlayerTimeLimit.values.firstWhere(
+      (e) => e.name == saved,
+      orElse: () => SettingsDefaults.twoPlayerTimeLimit,
+    );
   }
 
   Future<void> setTwoPlayerTimeLimit(TwoPlayerTimeLimit value) => _prefs.setString(_keyTwoPlayerTimeLimit, value.name);
 
-  bool get starTwoPlayer => _prefs.getBool(_keyStarTwoPlayer) ?? SettingsDefaults.starTwoPlayer;
+  bool get starTwoPlayer => _getBool(_keyStarTwoPlayer) ?? SettingsDefaults.starTwoPlayer;
 
   Future<void> setStarTwoPlayer(bool value) => _prefs.setBool(_keyStarTwoPlayer, value);
 
-  bool get starEasy => _prefs.getBool(_keyStarEasy) ?? SettingsDefaults.starEasy;
+  bool get starEasy => _getBool(_keyStarEasy) ?? SettingsDefaults.starEasy;
 
   Future<void> setStarEasy(bool value) => _prefs.setBool(_keyStarEasy, value);
 
-  bool get starNormal => _prefs.getBool(_keyStarNormal) ?? SettingsDefaults.starNormal;
+  bool get starNormal => _getBool(_keyStarNormal) ?? SettingsDefaults.starNormal;
 
   Future<void> setStarNormal(bool value) => _prefs.setBool(_keyStarNormal, value);
 
-  bool get starHard => _prefs.getBool(_keyStarHard) ?? SettingsDefaults.starHard;
+  bool get starHard => _getBool(_keyStarHard) ?? SettingsDefaults.starHard;
 
   Future<void> setStarHard(bool value) => _prefs.setBool(_keyStarHard, value);
 }
