@@ -9,6 +9,7 @@ import 'presentation/home/home_screen.dart';
 import 'state/providers.dart';
 
 Future<void> main() async {
+  // runApp より前に OS 機能(画面向き・システムUI)を触るため、先に Flutter の土台を起動
   WidgetsFlutterBinding.ensureInitialized();
 
   // 画面は常に横向き固定で、端末の向きによる回転は一切行えない
@@ -20,25 +21,14 @@ Future<void> main() async {
   // ステータスバー/ナビゲーションバーを隠し、全画面表示にする
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-  // 設定の読み込みと音声のプリロードは、UI表示前に完了させたいので
-  // runApp 前に済ませ、出来上がった実体を Provider に差し込む。
-  final settingsRepository = SettingsRepository();
-  await settingsRepository.init();
+  // 設定の読み込みと音声のプリロードをUI表示前に完了させる
+  final settingsRepository = await SettingsRepository.create();
+  final audioManager = await AudioManager.create();
 
-  final audioManager = AudioManager();
-  await audioManager.preload();
-
-  final container = ProviderContainer(
-    overrides: [
-      settingsRepositoryProvider.overrideWithValue(settingsRepository),
-      audioManagerProvider.overrideWithValue(audioManager),
-    ],
+  final container = createAppProviderContainer(
+    settingsRepository: settingsRepository,
+    audioManager: audioManager,
   );
-  // SettingsNotifier は Provider が最初に watch/read された時点で作られる(遅延生成)。
-  // ここで先に読んでおかないと、HomeScreen.initState() の playBgm() が
-  // 保存済みの bgmOn/seOn より先に走り、AudioManager のデフォルト値(true)で
-  // 再生されてしまう(= 前回OFFにしていてもBGMが鳴る不具合の原因)。
-  container.read(settingsNotifierProvider);
 
   runApp(
     UncontrolledProviderScope(

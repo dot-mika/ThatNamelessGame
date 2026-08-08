@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/assets.dart';
+import '../../infrastructure/app_logger.dart';
 import '../../infrastructure/audio_manager.dart';
 import '../../state/providers.dart';
 import '../app_routes.dart';
@@ -36,7 +37,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // 効果音は仕様通りに鳴らす。
   void _tap(String debugMessage) {
     ref.read(audioManagerProvider).playSe(Se.tapButton);
-    debugPrint(debugMessage);
+    appLogger.d(debugMessage);
   }
 
   @override

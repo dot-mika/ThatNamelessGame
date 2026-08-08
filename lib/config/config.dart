@@ -37,6 +37,8 @@ class AppColors {
 
 enum PlayMode { twoPlayer, easy, normal, hard }
 
+enum Language { jp, en }
+
 enum TwoPlayerTimeLimit {
   seconds5(5),
   seconds10(10),

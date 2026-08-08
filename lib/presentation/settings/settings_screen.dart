@@ -102,7 +102,7 @@ class SettingsScreen extends ConsumerWidget {
 class _HomeButton extends ConsumerWidget {
   const _HomeButton({required this.lang});
 
-  final String lang;
+  final Language lang;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -120,7 +120,7 @@ class _HomeButton extends ConsumerWidget {
 class _TimeLimitSelector extends ConsumerWidget {
   const _TimeLimitSelector({required this.lang});
 
-  final String lang;
+  final Language lang;
 
   static const double _height = 80;
   // 外枠の左右パディング合計(EdgeInsets.all(6))。
@@ -138,7 +138,7 @@ class _TimeLimitSelector extends ConsumerWidget {
   static const double _unlimitedVerticalMargin = 5;
 
   double get _unlimitedWidth =>
-      lang == 'jp' ? _unlimitedWidthJp : _unlimitedWidthEn;
+      lang == Language.jp ? _unlimitedWidthJp : _unlimitedWidthEn;
 
   // 全体幅は各列の幅から求める(バラバラに固定値を持つとズレる/はみ出るため)。
   double get _width =>
@@ -191,7 +191,7 @@ class _OnOffSelector extends ConsumerWidget {
     required this.onChanged,
   });
 
-  final String lang;
+  final Language lang;
   final bool value;
   final ValueChanged<bool> onChanged;
 
@@ -245,7 +245,7 @@ class _OnOffSelector extends ConsumerWidget {
 class _LanguageSelector extends ConsumerWidget {
   const _LanguageSelector({required this.lang});
 
-  final String lang;
+  final Language lang;
 
   static const double _width = 268;
   static const double _height = 80;
@@ -262,14 +262,14 @@ class _LanguageSelector extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          Expanded(child: _pill(ref, 'jp', SettingsStrings.of('japanese', lang))),
-          Expanded(child: _pill(ref, 'en', SettingsStrings.of('english', lang))),
+          Expanded(child: _pill(ref, Language.jp, SettingsStrings.of('japanese', lang))),
+          Expanded(child: _pill(ref, Language.en, SettingsStrings.of('english', lang))),
         ],
       ),
     );
   }
 
-  Widget _pill(WidgetRef ref, String code, String label) {
+  Widget _pill(WidgetRef ref, Language code, String label) {
     return _SegmentPill(
       label: label,
       isSelected: lang == code,

@@ -21,3 +21,22 @@ final settingsNotifierProvider = ChangeNotifierProvider<SettingsNotifier>((ref) 
     ref.watch(audioManagerProvider),
   );
 });
+
+/// runApp 前に生成済みの実体を overrides で差し込んだ ProviderContainer を作る
+ProviderContainer createAppProviderContainer({
+  required SettingsRepository settingsRepository,
+  required AudioManager audioManager,
+}) {
+  final container = ProviderContainer(
+    overrides: [
+      settingsRepositoryProvider.overrideWithValue(settingsRepository),
+      audioManagerProvider.overrideWithValue(audioManager),
+    ],
+  );
+  // SettingsNotifier は Provider が最初に watch/read された時点で作られる(遅延生成)。
+  // ここで先に読んでおかないと、HomeScreen.initState() の playBgm() が
+  // 保存済みの bgmOn/seOn より先に走り、AudioManager のデフォルト値(true)で
+  // 再生されてしまう(= 前回OFFにしていてもBGMが鳴る不具合の原因)。
+  container.read(settingsNotifierProvider);
+  return container;
+}

@@ -1,3 +1,5 @@
+import 'config.dart';
+
 class Assets {
   Assets._();
 
@@ -8,12 +10,12 @@ class Assets {
   static const String settingsIcon = '${_homePrefix}settings.png';
   static const String star = '${_homePrefix}star.png';
 
-  static String rules(String lang) => '$_homePrefix$lang/rules_$lang.png';
-  static String titleLogo(String lang) => '$_homePrefix$lang/title_logo_$lang.png';
-  static String play2(String lang) => '$_homePrefix$lang/play_2_$lang.png';
-  static String play1Easy(String lang) => '$_homePrefix$lang/play_1_easy_$lang.png';
-  static String play1Normal(String lang) => '$_homePrefix$lang/play_1_normal_$lang.png';
-  static String play1Hard(String lang) => '$_homePrefix$lang/play_1_hard_$lang.png';
+  static String rules(Language lang) => '$_homePrefix${lang.name}/rules_${lang.name}.png';
+  static String titleLogo(Language lang) => '$_homePrefix${lang.name}/title_logo_${lang.name}.png';
+  static String play2(Language lang) => '$_homePrefix${lang.name}/play_2_${lang.name}.png';
+  static String play1Easy(Language lang) => '$_homePrefix${lang.name}/play_1_easy_${lang.name}.png';
+  static String play1Normal(Language lang) => '$_homePrefix${lang.name}/play_1_normal_${lang.name}.png';
+  static String play1Hard(Language lang) => '$_homePrefix${lang.name}/play_1_hard_${lang.name}.png';
 
   // settings
   static const String _settingsPrefix = 'assets/settings/';

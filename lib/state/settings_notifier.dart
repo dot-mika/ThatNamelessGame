@@ -22,7 +22,7 @@ class SettingsNotifier extends ChangeNotifier {
   final SettingsRepository _repository;
   final AudioManager _audioManager;
 
-  String _language;
+  Language _language;
   bool _bgmOn;
   bool _seOn;
   TwoPlayerTimeLimit _twoPlayerTimeLimit;
@@ -31,7 +31,7 @@ class SettingsNotifier extends ChangeNotifier {
   bool _starNormal;
   bool _starHard;
 
-  String get language => _language;
+  Language get language => _language;
   bool get bgmOn => _bgmOn;
   bool get seOn => _seOn;
   TwoPlayerTimeLimit get twoPlayerTimeLimit => _twoPlayerTimeLimit;
@@ -40,7 +40,7 @@ class SettingsNotifier extends ChangeNotifier {
   bool get starNormal => _starNormal;
   bool get starHard => _starHard;
 
-  Future<void> setLanguage(String lang) async {
+  Future<void> setLanguage(Language lang) async {
     if (_language == lang) return;
     _language = lang;
     await _repository.setLanguage(lang);
