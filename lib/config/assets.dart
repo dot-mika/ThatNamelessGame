@@ -1,41 +1,53 @@
-import 'config.dart';
+import '../settings/app_settings.dart';
 
 class Assets {
   Assets._();
 
-  // home
-  static const String _homePrefix = 'assets/home/';
+  static const backgroundRainbow = 'assets/home/background_rainbow.png';
+  static const settingsIcon = 'assets/home/settings.png';
+  static const star = 'assets/home/star.png';
+  static const settingsBackground = 'assets/settings/background_settings.png';
+  static const settingsHome = 'assets/settings/settings_home.png';
 
-  static const String backgroundRainbow = '${_homePrefix}background_rainbow.png';
-  static const String settingsIcon = '${_homePrefix}settings.png';
-  static const String star = '${_homePrefix}star.png';
+  static String _languageCode(AppLanguage language) => language.name;
+  static String titleLogo(AppLanguage language) {
+    final code = _languageCode(language);
+    return 'assets/home/$code/title_logo_$code.png';
+  }
 
-  static String rules(Language lang) => '$_homePrefix${lang.name}/rules_${lang.name}.png';
-  static String titleLogo(Language lang) => '$_homePrefix${lang.name}/title_logo_${lang.name}.png';
-  static String play2(Language lang) => '$_homePrefix${lang.name}/play_2_${lang.name}.png';
-  static String play1Easy(Language lang) => '$_homePrefix${lang.name}/play_1_easy_${lang.name}.png';
-  static String play1Normal(Language lang) => '$_homePrefix${lang.name}/play_1_normal_${lang.name}.png';
-  static String play1Hard(Language lang) => '$_homePrefix${lang.name}/play_1_hard_${lang.name}.png';
+  static String rules(AppLanguage language) {
+    final code = _languageCode(language);
+    return 'assets/home/$code/rules_$code.png';
+  }
 
-  // settings
-  static const String _settingsPrefix = 'assets/settings/';
+  static String playTwo(AppLanguage language) {
+    final code = _languageCode(language);
+    return 'assets/home/$code/play_2_$code.png';
+  }
 
-  static const String settingsBackground = '${_settingsPrefix}background_settings.png';
-  static const String settingsHome = '${_settingsPrefix}settings_home.png';
+  static String playEasy(AppLanguage language) {
+    final code = _languageCode(language);
+    return 'assets/home/$code/play_1_easy_$code.png';
+  }
 
-  // audio
-  static const String _audioPrefix = 'audio/';
+  static String playNormal(AppLanguage language) {
+    final code = _languageCode(language);
+    return 'assets/home/$code/play_1_normal_$code.png';
+  }
 
-  static const String bgm = '${_audioPrefix}bgm/bgm.mp3';
+  static String playHard(AppLanguage language) {
+    final code = _languageCode(language);
+    return 'assets/home/$code/play_1_hard_$code.png';
+  }
 
-  static const String _sePrefix = '${_audioPrefix}se/';
-
-  static const String seTapButton = '${_sePrefix}tap_button.mp3';
-  static const String seTapHand = '${_sePrefix}tap_hand.mp3';
-  static const String seWin = '${_sePrefix}win.mp3';
-  static const String seTapOk = '${_sePrefix}tap_ok.mp3';
-  static const String seCountdown = '${_sePrefix}countdown.mp3';
-  static const String seStart = '${_sePrefix}start.mp3';
-  static const String seDraw = '${_sePrefix}draw.mp3';
-  static const String seLose = '${_sePrefix}lose.mp3';
+  // AssetSource uses paths relative to the Flutter assets directory.
+  static const bgm = 'audio/bgm/bgm.mp3';
+  static const seTapButton = 'audio/se/tap_button.mp3';
+  static const seTapHand = 'audio/se/tap_hand.mp3';
+  static const seWin = 'audio/se/win.mp3';
+  static const seTapOk = 'audio/se/tap_ok.mp3';
+  static const seCountdown = 'audio/se/countdown.mp3';
+  static const seStart = 'audio/se/start.mp3';
+  static const seDraw = 'audio/se/draw.mp3';
+  static const seLose = 'audio/se/lose.mp3';
 }

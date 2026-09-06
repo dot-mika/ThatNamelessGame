@@ -70,6 +70,17 @@ flutter:
     - assets/home/jp/
     - assets/home/en/
     - assets/settings/
+    - assets/play/backgrounds/
+    - assets/play/hands/
+    - assets/play/judge/en/
+    - assets/play/judge/jp/
+    - assets/play/labels/en/
+    - assets/play/labels/jp/
+    - assets/play/pop/
+    - assets/play/pop/en/
+    - assets/play/pop/jp/
+    - assets/play/start/
+    - assets/rules/buttons/
     - assets/audio/bgm/
     - assets/audio/se/
 
