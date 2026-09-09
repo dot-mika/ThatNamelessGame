@@ -1,4 +1,8 @@
-import '../settings/app_settings.dart';
+import 'package:flutter/painting.dart';
+import 'package:flutter/services.dart';
+
+import '../settings/settings_state.dart';
+import 'config.dart';
 
 class Assets {
   Assets._();
@@ -8,6 +12,19 @@ class Assets {
   static const star = 'assets/home/star.png';
   static const settingsBackground = 'assets/settings/background_settings.png';
   static const settingsHome = 'assets/settings/settings_home.png';
+
+  /// 事前読み込みと画面表示で同じ解像度・キャッシュキーを使う。
+  static ImageProvider image(String asset, {AssetBundle? bundle}) {
+    final provider = AssetImage(asset, bundle: bundle);
+    if (asset == backgroundRainbow || asset == settingsBackground) {
+      return ResizeImage.resizeIfNeeded(
+        AppConfig.canvasWidth.toInt(),
+        AppConfig.canvasHeight.toInt(),
+        provider,
+      );
+    }
+    return provider;
+  }
 
   static String _languageCode(AppLanguage language) => language.name;
   static String titleLogo(AppLanguage language) {

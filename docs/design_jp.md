@@ -50,7 +50,7 @@ ColoredBox(
 | 状態 | 寿命 | 管理先 |
 |---|---|---|
 | 言語、BGM、SE、2人プレイ制限時間、☆ | アプリ終了後も保持 | `appSettingsProvider` |
-| BGM再生状態、foreground状態 | アプリ起動中 | `audioManagerProvider` |
+| BGM再生状態、foreground状態 | アプリ起動中 | `audioControllerProvider` |
 | 対局、選択、残り時間、結果 | プレイ画面を開いている間 | `playSessionProvider` |
 | ルールのページ番号 | ルール画面を開いている間 | `RulesScreen` 内部 |
 

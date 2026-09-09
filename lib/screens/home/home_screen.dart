@@ -3,11 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../settings/app_settings_notifier.dart';
+import '../../settings/update_settings.dart';
 import '../../config/config.dart';
-import '../../settings/app_settings.dart';
 import '../../config/assets.dart';
-import '../../audio/audio_manager.dart';
+import '../../audio/audio_controller.dart';
 import '../settings/settings_screen.dart';
 import '../widgets/tappable_image.dart';
 
@@ -24,11 +23,12 @@ class HomeScreen extends ConsumerWidget {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              Assets.backgroundRainbow,
+            child: Image(
+              image: Assets.image(
+                Assets.backgroundRainbow,
+                bundle: DefaultAssetBundle.of(context),
+              ),
               fit: BoxFit.cover,
-              cacheWidth: AppConfig.canvasWidth.toInt(),
-              cacheHeight: AppConfig.canvasHeight.toInt(),
             ),
           ),
           Positioned(
@@ -46,7 +46,7 @@ class HomeScreen extends ConsumerWidget {
             child: TappableImage(
               key: const Key('rulesButton'),
               asset: Assets.rules(language),
-              semanticLabel: language == AppLanguage.jp ? 'ルール' : 'Rules',
+              semanticLabel: AppStrings.rules(language),
               onTap: () => debugPrint('ルール画面は未実装です'),
             ),
           ),
@@ -66,28 +66,28 @@ class HomeScreen extends ConsumerWidget {
             left: 36,
             asset: Assets.playTwo(language),
             showStar: settings.star2p,
-            semanticLabel: language == AppLanguage.jp ? '2人対戦' : '2 players',
+            semanticLabel: AppStrings.playTwo(language),
             onTap: () => debugPrint('2人対戦は未実装です'),
           ),
           _ModeButton(
             left: 346,
             asset: Assets.playEasy(language),
             showStar: settings.starEasy,
-            semanticLabel: language == AppLanguage.jp ? 'かんたん' : 'Easy',
+            semanticLabel: AppStrings.playEasy(language),
             onTap: () => debugPrint('かんたんモードは未実装です'),
           ),
           _ModeButton(
             left: 656,
             asset: Assets.playNormal(language),
             showStar: settings.starNormal,
-            semanticLabel: language == AppLanguage.jp ? 'ふつう' : 'Normal',
+            semanticLabel: AppStrings.playNormal(language),
             onTap: () => debugPrint('ふつうモードは未実装です'),
           ),
           _ModeButton(
             left: 966,
             asset: Assets.playHard(language),
             showStar: settings.starHard,
-            semanticLabel: language == AppLanguage.jp ? 'むずかしい' : 'Hard',
+            semanticLabel: AppStrings.playHard(language),
             onTap: () => debugPrint('むずかしいモードは未実装です'),
           ),
         ],
@@ -96,7 +96,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Future<void> _openSettings(BuildContext context, WidgetRef ref) async {
-    unawaited(ref.read(audioManagerProvider).play(SoundEffect.tapButton));
+    unawaited(ref.read(audioControllerProvider).play(SoundEffect.tapButton));
     await Navigator.of(context).push<void>(
       PageRouteBuilder<void>(
         pageBuilder: (_, _, _) => const SettingsScreen(),

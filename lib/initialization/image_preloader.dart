@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../config/config.dart';
 import '../config/assets.dart';
 
 /// バンドルに登録された全画面の静止画像を、言語を問わず先読みする。
@@ -34,16 +33,7 @@ Future<void> preloadAllImages(BuildContext context) async {
   const batchSize = 4;
   final batch = <Future<void>>[];
   for (final asset in assets) {
-    ImageProvider provider = AssetImage(asset, bundle: bundle);
-    if (asset == Assets.backgroundRainbow ||
-        asset == Assets.settingsBackground) {
-      // 表示側の cacheWidth / cacheHeight とキャッシュキーを揃える。
-      provider = ResizeImage.resizeIfNeeded(
-        AppConfig.canvasWidth.toInt(),
-        AppConfig.canvasHeight.toInt(),
-        provider,
-      );
-    }
+    final provider = Assets.image(asset, bundle: bundle);
     batch.add(_loadImage(provider, configuration));
     if (batch.length == batchSize) {
       await Future.wait(batch);

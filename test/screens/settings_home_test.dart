@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:that_nameless_game/settings/app_settings_notifier.dart';
+import 'package:that_nameless_game/settings/update_settings.dart';
 import 'package:that_nameless_game/config/config.dart';
-import 'package:that_nameless_game/settings/app_settings.dart';
-import 'package:that_nameless_game/audio/audio_manager.dart';
+import 'package:that_nameless_game/settings/settings_state.dart';
+import 'package:that_nameless_game/audio/audio_controller.dart';
 import 'package:that_nameless_game/settings/save_settings.dart';
 import 'package:that_nameless_game/main.dart';
 
@@ -25,7 +25,7 @@ void main() {
       ProviderScope(
         overrides: [
           settingsRepositoryProvider.overrideWithValue(repository),
-          audioManagerProvider.overrideWithValue(AudioManager.silent()),
+          audioControllerProvider.overrideWithValue(AudioController.silent()),
           initialSettingsProvider.overrideWithValue(initial),
         ],
         child: const ThatNamelessGame(),
@@ -80,7 +80,7 @@ void main() {
       ProviderScope(
         overrides: [
           settingsRepositoryProvider.overrideWithValue(repository),
-          audioManagerProvider.overrideWithValue(AudioManager.silent()),
+          audioControllerProvider.overrideWithValue(AudioController.silent()),
           initialSettingsProvider.overrideWithValue(
             AppSettings.defaults(AppLanguage.en),
           ),

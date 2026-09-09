@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:that_nameless_game/config/config.dart';
 import 'package:that_nameless_game/config/assets.dart';
 import 'package:that_nameless_game/initialization/image_preloader.dart';
 
@@ -39,15 +38,7 @@ void main() {
       expect(pngs.any((path) => path.startsWith('assets/rules/')), isTrue);
       for (final path in pngs) {
         if (path.startsWith('assets/icon/')) continue;
-        ImageProvider provider = AssetImage(path, bundle: bundle);
-        if (path == Assets.backgroundRainbow ||
-            path == Assets.settingsBackground) {
-          provider = ResizeImage.resizeIfNeeded(
-            AppConfig.canvasWidth.toInt(),
-            AppConfig.canvasHeight.toInt(),
-            provider,
-          );
-        }
+        final provider = Assets.image(path, bundle: bundle);
         final key = await provider.obtainKey(configuration);
         expect(cache.statusForKey(key).keepAlive, isTrue, reason: path);
       }

@@ -3,7 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'app_settings.dart';
+import 'settings_state.dart';
 
 class SettingsRepository {
   SettingsRepository._(this._preferences);

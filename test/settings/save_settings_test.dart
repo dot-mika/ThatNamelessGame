@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:that_nameless_game/settings/app_settings.dart';
+import 'package:that_nameless_game/settings/settings_state.dart';
 import 'package:that_nameless_game/settings/save_settings.dart';
 
 void main() {

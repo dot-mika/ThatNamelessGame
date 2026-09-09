@@ -3,18 +3,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../settings/app_settings_notifier.dart';
+import '../../settings/update_settings.dart';
 import '../../config/config.dart';
-import '../../settings/app_settings.dart';
+import '../../settings/settings_state.dart';
 import '../../config/assets.dart';
-import '../../audio/audio_manager.dart';
+import '../../audio/audio_controller.dart';
 import '../widgets/tappable_image.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   void _tapSound(WidgetRef ref) =>
-      unawaited(ref.read(audioManagerProvider).play(SoundEffect.tapButton));
+      unawaited(ref.read(audioControllerProvider).play(SoundEffect.tapButton));
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -27,11 +27,12 @@ class SettingsScreen extends ConsumerWidget {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              Assets.settingsBackground,
+            child: Image(
+              image: Assets.image(
+                Assets.settingsBackground,
+                bundle: DefaultAssetBundle.of(context),
+              ),
               fit: BoxFit.cover,
-              cacheWidth: AppConfig.canvasWidth.toInt(),
-              cacheHeight: AppConfig.canvasHeight.toInt(),
             ),
           ),
           Positioned(
@@ -114,7 +115,7 @@ class SettingsScreen extends ConsumerWidget {
             child: TappableImage(
               key: const Key('settingsHomeButton'),
               asset: Assets.settingsHome,
-              semanticLabel: 'Home',
+              semanticLabel: AppStrings.home(language),
               onTap: () {
                 _tapSound(ref);
                 Navigator.of(context).pop();

@@ -3,22 +3,19 @@ import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'app_settings.dart';
-import '../audio/audio_manager.dart';
+import 'settings_state.dart';
+import '../audio/audio_controller.dart';
 import 'save_settings.dart';
 
 class AppSettingsNotifier extends Notifier<AppSettings> {
   late SettingsRepository _repository;
-  late AudioManager _audio;
+  late AudioController _audio;
   Future<void> _saveQueue = Future<void>.value();
-  Object? _lastSaveError;
-
-  Object? get lastSaveError => _lastSaveError;
 
   @override
   AppSettings build() {
     _repository = ref.read(settingsRepositoryProvider);
-    _audio = ref.read(audioManagerProvider);
+    _audio = ref.read(audioControllerProvider);
     return ref.read(initialSettingsProvider);
   }
 
@@ -56,16 +53,14 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
 
   void _update(AppSettings next) {
     state = next;
-    _enqueueSave(next);
+    unawaited(_enqueueSave(next));
   }
 
   Future<void> _enqueueSave(AppSettings snapshot) {
     _saveQueue = _saveQueue.then((_) async {
       try {
         await _repository.save(snapshot);
-        _lastSaveError = null;
       } catch (error, stackTrace) {
-        _lastSaveError = error;
         developer.log(
           'Could not save app settings. The in-memory value is retained.',
           error: error,
@@ -75,16 +70,10 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
     });
     return _saveQueue;
   }
-
-  Future<void> retrySave() => _enqueueSave(state);
 }
 
 final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
   throw StateError('SettingsRepository must be supplied at bootstrap.');
-});
-
-final audioManagerProvider = Provider<AudioManager>((ref) {
-  throw StateError('AudioManager must be supplied at bootstrap.');
 });
 
 final initialSettingsProvider = Provider<AppSettings>((ref) {
