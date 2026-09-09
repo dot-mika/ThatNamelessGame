@@ -6,17 +6,17 @@ import '../settings/settings_state.dart';
 import 'audio_controller.dart';
 
 /// 音声の準備前からアプリの状態を追跡し、起動後も再生状態へ反映する。
-class AudioObsevser with WidgetsBindingObserver {
+class AudioObserver with WidgetsBindingObserver {
 
   // 今このアプリが前面にいればtrueで初期化する
-  AudioObsevser()
+  AudioObserver()
     : _foreground =
           WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed {
     
     // Flutterアプリ全体の状態を管理してる WidgetsBinding を取ってくる
     final binding = WidgetsBinding.instance;
 
-    // AudioObsevser(いまのクラスのインスタンス) を、アプリ状態変化の監視対象として登録する
+    // AudioObserver(いまのクラスのインスタンス) を、アプリ状態変化の監視対象として登録する
     binding.addObserver(this);
   }
 

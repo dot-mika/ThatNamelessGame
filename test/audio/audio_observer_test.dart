@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:that_nameless_game/audio/audio_obsevser.dart';
+import 'package:that_nameless_game/audio/audio_observer.dart';
 import 'package:that_nameless_game/audio/audio_controller.dart';
 import 'package:that_nameless_game/settings/settings_state.dart';
 
@@ -12,7 +12,7 @@ void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();
   test('remembers background transition before audio is ready', () async {
     binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    final lifecycle = AudioObsevser();
+    final lifecycle = AudioObserver();
     final player = FakeAudioPlayer();
     final audio = AudioController.withPlayers(bgmPlayer: player);
     addTearDown(() async {
@@ -33,7 +33,7 @@ void main() {
     'reads initial lifecycle and does not briefly play disabled BGM',
     () async {
       binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-      final lifecycle = AudioObsevser();
+      final lifecycle = AudioObserver();
       final player = FakeAudioPlayer();
       final audio = AudioController.withPlayers(bgmPlayer: player);
       addTearDown(() async {
@@ -55,7 +55,7 @@ void main() {
     'background transition during attach is applied before settling',
     () async {
       binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-      final lifecycle = AudioObsevser();
+      final lifecycle = AudioObserver();
       final player = FakeAudioPlayer();
       final audio = AudioController.withPlayers(bgmPlayer: player);
       addTearDown(() async {

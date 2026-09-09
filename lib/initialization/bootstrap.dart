@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../audio/audio_obsevser.dart';
+import '../audio/audio_observer.dart';
 import '../audio/audio_controller.dart';
 import '../config/config.dart';
 import '../settings/settings_state.dart';
@@ -29,7 +29,7 @@ class Bootstrap extends StatefulWidget {
 }
 
 class _BootstrapState extends State<Bootstrap> {
-  late final AudioObsevser _audioObsevser;
+  late final AudioObserver _audioObserver;
   ProviderContainer? _container;
   AudioController? _audio;
   Object? _error;
@@ -40,7 +40,7 @@ class _BootstrapState extends State<Bootstrap> {
   void initState() {
     super.initState();
 
-    _audioObsevser = AudioObsevser();
+    _audioObserver = AudioObserver();
     unawaited(_initialize());
   }
 
@@ -71,7 +71,7 @@ class _BootstrapState extends State<Bootstrap> {
       if (!mounted) {
         return;
       }
-      await _audioObsevser.attach(audio, settings);
+      await _audioObserver.attach(audio, settings);
       if (!mounted) return;
 
       // 読み込んだ実体をRiverpodへ渡す
@@ -99,7 +99,7 @@ class _BootstrapState extends State<Bootstrap> {
       // 起動失敗や画面破棄で引き渡せなかった音声を片付ける。
       pendingContainer?.dispose();
       if (pendingAudio != null) {
-        _audioObsevser.detach();
+        _audioObserver.detach();
         await pendingAudio?.dispose();
       }
       _initializing = false;
@@ -109,7 +109,7 @@ class _BootstrapState extends State<Bootstrap> {
   @override
   void dispose() {
     // アプリ終了時に監視と外部リソースを破棄する
-    _audioObsevser.dispose();
+    _audioObserver.dispose();
     _container?.dispose();
     unawaited(_audio?.dispose());
     super.dispose();
