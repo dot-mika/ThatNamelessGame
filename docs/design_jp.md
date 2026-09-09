@@ -2,6 +2,8 @@
 
 この文書は、[`specifications_jp.md`](specifications_jp.md) を実装するための技術設計書である。画面表示やゲーム動作が本書と仕様書で食い違う場合は、仕様書を正とする。
 
+現在は第1段階の設定保持、設定画面、ホーム画面と共通の起動・音声処理を実装している。第1・2章は現在の実装を記載し、第3〜8章は今後の実装計画とする。第9章では実装済みの音声監視と、プレイ画面追加時の方針を区別する。
+
 本作は、次の順番で実装する。
 
 1. 裏側の設定保持、設定画面、ホーム画面
@@ -27,7 +29,7 @@
 
 ### 1.2 共通表示
 
-画面は横向きに固定し、全画面の外側に1つだけ16:9の表示枠を置く。論理サイズは `1280 × 720` とする。
+画面は左右両方の横向きに固定し、`SystemUiMode.immersiveSticky` でシステムUIを隠す。`ThatNamelessGame` の `MaterialApp.builder` で、Navigatorを含む全画面の外側に1つだけ16:9の表示枠を置く。論理サイズは `1280 × 720` とする。
 
 ```dart
 ColoredBox(
@@ -41,7 +43,7 @@ ColoredBox(
 )
 ```
 
-画面内の座標は `LayoutSpec`、アニメーション値は `MotionSpec`、アセットパスは `Assets` に集約する。
+論理サイズ、BGM音量、画像ボタンの連打抑止時間は `AppConfig`、共通色は `AppColors`、日英の表示文字列は `AppStrings`、アセットパスは `Assets` に集約する。フォントは `Rwi` を使用する。画面内の座標や寸法は各Widgetに直接定義しており、`LayoutSpec` と `MotionSpec` は未導入である。
 
 ### 1.3 状態管理と画面遷移
 
@@ -50,11 +52,29 @@ ColoredBox(
 | 状態 | 寿命 | 管理先 |
 |---|---|---|
 | 言語、BGM、SE、2人プレイ制限時間、☆ | アプリ終了後も保持 | `appSettingsProvider` |
-| BGM再生状態、foreground状態 | アプリ起動中 | `audioControllerProvider` |
-| 対局、選択、残り時間、結果 | プレイ画面を開いている間 | `playSessionProvider` |
-| ルールのページ番号 | ルール画面を開いている間 | `RulesScreen` 内部 |
+| BGM再生状態、音声へ適用するforeground状態 | アプリ起動中 | `audioControllerProvider` |
+| 音声準備前からのアプリのforeground状態 | `Bootstrap` の生存中 | `AudioObserver` |
+| 対局、選択、残り時間、結果 | プレイ画面を開いている間 | `playSessionProvider`（未実装） |
+| ルールのページ番号 | ルール画面を開いている間 | `RulesScreen` 内部（未実装） |
 
 画面は `Navigator` で遷移する。設定、プレイ、ルールはすべてホームを入口とする。アプリ再起動時は前回の画面を復元せず、必ずホームから開始する。
+
+現在の遷移先は設定画面のみで、`PageRouteBuilder` の往復の遷移時間をゼロにして切り替える。`Bootstrap` は準備済みの設定リポジトリ、初期設定、音声管理を `ProviderContainer` に上書き登録し、`UncontrolledProviderScope` で画面へ渡す。コンテナと音声の破棄も `Bootstrap` が担当する。
+
+### 1.4 現在のファイル構成
+
+| ファイル | 責務 |
+|---|---|
+| `lib/main.dart` | 例外ハンドラ、横向き・全画面設定、テーマ、16:9表示枠 |
+| `lib/config/config.dart`、`assets.dart` | 共通定数、文字列、音声の種類、アセット参照 |
+| `lib/initialization/bootstrap.dart`、`image_preloader.dart` | 起動準備と画像先読み |
+| `lib/settings/settings_state.dart` | 設定値とenum |
+| `lib/settings/save_settings.dart` | 設定の読込・保存 |
+| `lib/settings/update_settings.dart` | 設定変更、保存キュー、設定Provider |
+| `lib/audio/audio_controller.dart`、`audio_observer.dart` | 音声再生とライフサイクル監視 |
+| `lib/screens/home/home_screen.dart` | ホーム画面 |
+| `lib/screens/settings/settings_screen.dart` | 設定画面 |
+| `lib/screens/widgets/tappable_image.dart` | 連打と非同期処理中の重複操作を抑止する画像ボタン |
 
 
 ## 2. 第1段階：設定保持、設定画面、ホーム画面
@@ -70,8 +90,8 @@ class AppSettings {
   final AppLanguage language;
   final bool bgmEnabled;
   final bool seEnabled;
-  final Duration twoPlayerTimeLimit;
-  final bool starTwoPlayer;
+  final TimeLimit timeLimit;
+  final bool star2p;
   final bool starEasy;
   final bool starNormal;
   final bool starHard;
@@ -80,10 +100,12 @@ class AppSettings {
 
 初期値は、端末言語が日本語なら日本語、それ以外は英語、BGMとSEはON、2人プレイは15秒、☆はすべて未獲得とする。
 
+`AppSettings` は不変オブジェクトで、`copyWith`、値の等価比較、`hasStar(StarMode)` を持つ。`TimeLimit` は5、10、15、20、30、45、60秒と無制限を表すenumで、無制限の保存値は `-1`、`duration` は `null` とする。`StarMode` は `twoPlayer`、`easy`、`normal`、`hard` を持つ。
+
 `SettingsRepository` が `SharedPreferences` を包み、次のキーを管理する。
 
 ```text
-settingsVersion
+settingsInitialized
 language
 bgmEnabled
 seEnabled
@@ -94,26 +116,34 @@ starNormal
 starHard
 ```
 
-enumは `.index` ではなく文字列で保存する。未知の値、型違い、許可されていない制限時間は、その項目だけ初期値へ戻す。正常な項目は維持する。
+言語は `.index` ではなく `jp` / `en` の文字列、制限時間は秒数の整数で保存する。`star2p` の保存キーは `starTwoPlayer` とする。未知の値、型違い、許可されていない制限時間は、その項目だけ初期値へ戻す。正常な項目は維持する。
+
+`loadOrCreate` は `settingsInitialized` が `true` でなければ読み込んだ設定を保存する。保存時は各項目を書き込み、すべて成功してから初期化済みフラグを保存する。初期化済みの場合、欠損・不正値はログに記録し、読込時には保存値を書き直さない。保存APIが `false` を返した場合は例外として扱う。
 
 ### 2.2 起動処理
 
 ```text
-1. 端末を横向きに固定する
-2. 保存済みAppSettingsを読み込む
-3. 初回起動なら初期値を作る
-4. 音声を準備する
-5. BGMがONなら再生する
-6. ホーム画面を表示する
+1. 例外ハンドラを登録し、端末を横向き・全画面表示に設定する
+2. BootstrapでAudioObserverを作り、アプリ状態の監視を始める
+3. 保存済みAppSettingsを読み込み、未初期化なら設定を保存する
+4. 全画面の静止画像と、BGM・全SEを並行して準備する
+5. AudioObserver.attachで設定と最新のforeground状態を音声へ適用する
+6. ProviderContainerを作成し、ホーム画面を表示する
 ```
 
-設定読込中に初期言語や誤った☆を一瞬表示しない。初期化完了までは専用の起動画面を表示する。
+設定読込中に初期言語や誤った☆を一瞬表示しない。初期化完了までは黒一色の専用起動画面を表示する。設定読込・初回保存・画像準備などで失敗したら「再試行」ボタンを表示する。ボタンの言語は読込済み設定に従い、設定読込前の失敗では英語とする。再試行の重複実行を防ぎ、起動失敗・Widget破棄時には準備済みの音声やコンテナを破棄する。
+
+`preloadAllImages` は `AssetManifest` に登録された `assets/home/`、`assets/settings/`、`assets/play/`、`assets/rules/` 配下のPNG・JPEG・WebPを、両言語とも最大4枚ずつ並行して先読みする。GIFは対象外とする。画像キャッシュ容量は最低128 MiBに広げ、ホーム・設定背景は `Assets.image` を通じて1280×720でデコードし、表示時も同じキャッシュキーを使う。
+
+個別処理で扱わない未処理例外は、Zone、Flutterフレームワーク、ルートIsolateのハンドラから `AppExit.onUncaughtError` へ渡し、`SystemNavigator.pop` を一度だけ要求する。
 
 ### 2.3 設定変更
 
 `AppSettingsNotifier` は言語、BGM、SE、制限時間の変更と、モード別の☆解除を公開する。設定画面に保存ボタンは設けず、タップ時に表示へ即時反映して保存する。保存処理は直列化し、連続変更で古い値が最後に保存されることを防ぐ。
 
-保存失敗時も画面を操作不能にはしない。現在の表示値を維持してエラーを記録し、再試行できる状態にする。
+同じ値への変更では保存しない。保存失敗時も現在の表示値を維持してエラーをログへ記録し、後続の保存処理を継続する。専用の再試行UIや自動再試行はなく、次の設定変更で最新の設定全体を保存する。BGMとSEの変更は音声管理にも即時反映する。
+
+☆を消す `clearStar` は実装済みだが、画面からはまだ呼び出していない。☆の獲得・結果確定時の保存APIはプレイ画面の段階で追加する。
 
 ### 2.4 音声
 
@@ -122,19 +152,25 @@ enumは `.index` ではなく文字列で保存する。未知の値、型違い
 - SEがOFFなら効果音を開始しない。
 - 通常SEはBGMを止めない。
 - 勝敗SEの間だけBGMを止め、終了後に条件を満たせば再開する。
-- バックグラウンド中はBGMを一時停止し、SEを無効にする。
+- `AppLifecycleState.resumed` 以外ではBGMを一時停止し、新しいSEの再生を抑止する。再生中のSEを途中停止する処理はない。SEの設定をOFFにした場合も新規再生の抑止のみ行う。
 
-BGMと8種類のSEは起動中にキャッシュする。音声読込失敗だけでアプリ起動を失敗させない。
+BGMと8種類のSEはホーム表示前に、それぞれ専用の `AudioPlayer` へソースを設定する。BGMは音量0.5・ループ、SEは再生完了時に停止する設定とし、再利用する。音声コンテキスト設定の失敗は無音の管理クラスへ切り替え、個別音声の読込失敗はその音声を除外して起動を続ける。他アプリの音楽と共存するよう、Androidでは音声フォーカスを要求せず、iOSでは `mixWithOthers` を指定する。
+
+プレイヤー操作はキューで直列化し、BGMの状態が変わらない場合は再操作しない。通常SEは先頭から再生する。結果音用の `playResult` は重複実行を抑止し、BGMを一時停止して再生完了を待ち、終了後に最新の設定とforeground状態で再開可否を判定する。SEが無効・未準備なら完了待ちを省く。破棄要求後は未実行操作を捨て、結果音の完了待ちも解除する。
 
 ### 2.5 ホーム画面
 
 ホームは背景、タイトル、4モードのボタンと☆、ルール、設定ボタンを `Stack` で表示する。言語と☆は `appSettingsProvider` から受け取り、ホーム自身はゲーム状態を持たない。
 
-第1段階では設定ボタンだけを完成させる。未実装画面のボタンは無反応にせず、「準備中」と分かる状態にする。
+現在は設定ボタンだけが画面遷移とタップSEを実行する。4モードとルールのボタンは表示されるが、タップ時は未実装である旨を `debugPrint` へ出力するだけで、画面上の「準備中」表示やSEはない。
+
+画像ボタンは共通の `TappableImage` を使う。ボタンごとにタップ後500 msと非同期コールバックの完了まで重複操作を抑止する。設定を開くコールバックは `Navigator.push` を待つため、設定画面を閉じるまで再実行されない。波紋・ハイライト・ホバー色は表示しない。
 
 ### 2.6 設定画面
 
 2人プレイ制限時間、SE、BGM、言語を変更できる。表示は常に `appSettingsProvider` から作り、編集中コピーを持たない。言語変更は画面内の文字にも即時反映する。端末の戻る操作と画面内ホームボタンは、どちらもホームへ戻る。
+
+選択肢は `GestureDetector` で操作する文字ベースのWidgetで、画像ボタンの500 msの連打抑止は適用しない。選択済み項目をタップしても設定の再保存は行わない。
 
 ### 2.7 完了条件
 
@@ -358,11 +394,13 @@ RulesScreen / Stack
 
 ## 9. 共通のライフサイクル規則
 
-ルートに1つだけ `WidgetsBindingObserver` を置き、音声と、存在する場合だけプレイ状態へ通知する。
+現在は `Bootstrap` が `AudioObserver`（`lib/audio/audio_observer.dart`）を1つ所有する。`AudioObserver` は `WidgetsBindingObserver` を使い、生成時の `lifecycleState` とその後の変化を追跡する。音声準備前の状態変化も保持し、`attach` 時に保存設定とともに適用する。`resumed` のときだけforegroundとみなし、破棄時に監視登録を解除する。
+
+プレイ状態への通知は未実装である。プレイ画面を追加する段階で、以下の規則に従う監視・通知を実装する。
 
 | 状態 | バックグラウンド移行時 | 復帰時 |
 |---|---|---|
-| プレイ画面外 | 音声を停止 | 設定に従いBGMを再開 |
+| プレイ画面外（実装済み） | BGMを一時停止、新規SEを抑止 | 設定と結果音の再生状態に従いBGMを再開 |
 | countdown | 残り演出時間を保持 | 残りから再開 |
 | 人間の手番 | deadlineを保持 | 経過時間を含めて期限判定 |
 | CPUの手番 | CPU演出を停止 | バックグラウンド時間を除いて再開 |
@@ -377,7 +415,7 @@ RulesScreen / Stack
 
 | 段階 | ホームから利用可能にするもの | 主な自動テスト |
 |---:|---|---|
-| 1 | 設定 | 保存・読込・異常値・言語・音声状態 |
+| 1 | 設定 | 保存・読込・異常値・言語・音声状態・起動失敗と再試行・画像先読み・連打抑止・16:9表示 |
 | 2 | 2人プレイ | ルール・初期盤面・タイマー・状態遷移・☆ |
 | 3 | やさしい | 合法手・95%分岐・CPU演出・復帰 |
 | 4 | 追加画面なし | Python/Dart一致・探索性能・符号化 |
