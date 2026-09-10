@@ -30,6 +30,7 @@ class AudioController {
   bool _foreground = true;
   bool? _bgmPlaying = false;
   bool _resultPlaying = false;
+  bool _playSuspended = false;
   Future<void> _commands = Future<void>.value();
   Future<void>? _disposal;
   final _disposeRequested = Completer<void>();
@@ -156,7 +157,8 @@ class AudioController {
   }
 
   Future<void> _syncBgm() => _enqueue(() async {
-    final shouldPlay = _bgmEnabled && _foreground && !_resultPlaying;
+    final shouldPlay =
+        _bgmEnabled && _foreground && !_resultPlaying && !_playSuspended;
     if (shouldPlay == _bgmPlaying) return;
     final player = _bgmPlayer;
     if (player == null) return;
@@ -178,6 +180,12 @@ class AudioController {
   });
 
   bool get _canPlayEffects => _seEnabled && _foreground && !_disposed;
+
+  Future<void> setPlaySuspended(bool suspended) async {
+    if (_disposed) return;
+    _playSuspended = suspended;
+    await _syncBgm();
+  }
 
   Future<void> play(SoundEffect effect) => _enqueue(() async {
     if (!_canPlayEffects) return;

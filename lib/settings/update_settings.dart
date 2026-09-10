@@ -51,6 +51,16 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
     if (next != state) _update(next);
   }
 
+  Future<void> awardStar(StarMode mode) {
+    state = switch (mode) {
+      StarMode.twoPlayer => state.copyWith(star2p: true),
+      StarMode.easy => state.copyWith(starEasy: true),
+      StarMode.normal => state.copyWith(starNormal: true),
+      StarMode.hard => state.copyWith(starHard: true),
+    };
+    return _enqueueSave(state);
+  }
+
   void _update(AppSettings next) {
     state = next;
     unawaited(_enqueueSave(next));

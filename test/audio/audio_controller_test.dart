@@ -8,6 +8,36 @@ import 'fake_audio_player.dart';
 
 void main() {
   test(
+    'play suspension survives foreground changes and result completion',
+    () async {
+      final bgm = FakeAudioPlayer();
+      final win = FakeAudioPlayer();
+      final audio = AudioController.withPlayers(
+        bgmPlayer: bgm,
+        effectPlayers: {SoundEffect.win: win},
+      );
+      addTearDown(audio.dispose);
+      await audio.setBgmEnabled(true);
+      await audio.setPlaySuspended(true);
+      await audio.setForeground(false);
+      await audio.setForeground(true);
+      expect(bgm.playing, isFalse);
+      final started = Completer<void>();
+      win.onResume = () async => started.complete();
+      final result = audio.playResult(SoundEffect.win);
+      await started.future;
+      win.completion.add(null);
+      await result;
+      expect(bgm.playing, isFalse);
+      await audio.setPlaySuspended(false);
+      expect(bgm.playing, isTrue);
+      await audio.setBgmEnabled(false);
+      await audio.setPlaySuspended(true);
+      await audio.setPlaySuspended(false);
+      expect(bgm.playing, isFalse);
+    },
+  );
+  test(
     'OFF during an in-flight resume stops BGM after resume completes',
     () async {
       final player = FakeAudioPlayer();

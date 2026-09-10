@@ -11,12 +11,14 @@ class TappableImage extends StatefulWidget {
     required this.onTap,
     this.semanticLabel,
     this.opacity = 1,
+    this.fit,
   });
 
   final String asset;
   final FutureOr<void> Function() onTap;
   final String? semanticLabel;
   final double opacity;
+  final BoxFit? fit;
 
   @override
   State<TappableImage> createState() => _TappableImageState();
@@ -57,7 +59,7 @@ class _TappableImageState extends State<TappableImage> {
         hoverColor: Colors.transparent,
         child: Opacity(
           opacity: widget.opacity,
-          child: Image.asset(widget.asset),
+          child: Image.asset(widget.asset, fit: widget.fit),
         ),
       ),
     ),

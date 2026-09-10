@@ -10,13 +10,28 @@ class Assets {
   static const backgroundRainbow = 'assets/home/background_rainbow.png';
   static const settingsIcon = 'assets/home/settings.png';
   static const star = 'assets/home/star.png';
+  static const exitFrame = 'assets/play/pop/pop_frame.png';
+  static String exitDialog(String name, AppLanguage language) =>
+      'assets/play/pop/${language.name}/pop_${name}_${language.name}.png';
   static const settingsBackground = 'assets/settings/background_settings.png';
   static const settingsHome = 'assets/settings/settings_home.png';
+  static String playBackground(bool near) =>
+      'assets/play/backgrounds/background_${near ? 'F59DBC' : 'C297C8'}.png';
+  static String hand(int value, bool selected) =>
+      'assets/play/hands/hand_$value${selected && value != 0 ? '_selected' : ''}.png';
+  static String countdown(int value) =>
+      'assets/play/start/start_${value == 0 ? 'start' : value}.png';
+  static String playLabel(String name, AppLanguage language) =>
+      'assets/play/labels/${language.name}/${name}_${language.name}.png';
+  static String judge(String name, AppLanguage language) =>
+      'assets/play/judge/${language.name}/${name}_${language.name}.png';
 
   /// 事前読み込みと画面表示で同じ解像度・キャッシュキーを使う。
   static ImageProvider image(String asset, {AssetBundle? bundle}) {
     final provider = AssetImage(asset, bundle: bundle);
-    if (asset == backgroundRainbow || asset == settingsBackground) {
+    if (asset == backgroundRainbow ||
+        asset == settingsBackground ||
+        asset.startsWith('assets/play/backgrounds/')) {
       return ResizeImage.resizeIfNeeded(
         AppConfig.canvasWidth.toInt(),
         AppConfig.canvasHeight.toInt(),

@@ -8,6 +8,7 @@ import '../../config/config.dart';
 import '../../config/assets.dart';
 import '../../audio/audio_controller.dart';
 import '../settings/settings_screen.dart';
+import '../play/play_screen.dart';
 import '../widgets/tappable_image.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -67,7 +68,7 @@ class HomeScreen extends ConsumerWidget {
             asset: Assets.playTwo(language),
             showStar: settings.star2p,
             semanticLabel: AppStrings.playTwo(language),
-            onTap: () => debugPrint('2人対戦は未実装です'),
+            onTap: () => _openPlay(context, ref),
           ),
           _ModeButton(
             left: 346,
@@ -91,6 +92,24 @@ class HomeScreen extends ConsumerWidget {
             onTap: () => debugPrint('むずかしいモードは未実装です'),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _openPlay(BuildContext context, WidgetRef ref) async {
+    unawaited(ref.read(audioControllerProvider).play(SoundEffect.tapButton));
+    await Navigator.of(context).push<void>(
+      PageRouteBuilder<void>(
+        pageBuilder: (_, _, _) => const PlayScreen(),
+        transitionsBuilder: (_, animation, _, child) => SlideTransition(
+          position: Tween<Offset>(begin: const Offset(-1, 0), end: Offset.zero)
+              .animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+              ),
+          child: child,
+        ),
+        transitionDuration: const Duration(milliseconds: 250),
+        reverseTransitionDuration: const Duration(milliseconds: 250),
       ),
     );
   }
@@ -120,7 +139,7 @@ class _ModeButton extends StatelessWidget {
   final String asset;
   final bool showStar;
   final String semanticLabel;
-  final VoidCallback onTap;
+  final FutureOr<void> Function() onTap;
 
   @override
   Widget build(BuildContext context) => Positioned(
@@ -140,11 +159,11 @@ class _ModeButton extends StatelessWidget {
         ),
         if (showStar)
           Positioned(
-            right: -8,
-            bottom: -8,
-            width: 58,
-            height: 58,
-            child: Image.asset(Assets.star),
+            right: 18,
+            bottom: 28,
+            width: 46,
+            height: 43,
+            child: IgnorePointer(child: Image.asset(Assets.star)),
           ),
       ],
     ),

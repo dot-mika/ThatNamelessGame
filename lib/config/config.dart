@@ -5,6 +5,9 @@ import 'assets.dart';
 
 /// アプリ共通の色。配色の変更はここで行う。
 abstract final class AppColors {
+  static const nearPlayer = Color(0xFFF59DBC);
+  static const farPlayer = Color(0xFFC297C8);
+  static const disabled = Color(0xFFCCCCCC);
   static const settingsBlack = Color(0xFF7F7F7F);
   static const white = Color(0xFFFFFFFF);
 }
@@ -20,6 +23,17 @@ class AppConfig {
 
 class AppStrings {
   AppStrings._();
+  static String confirm(AppLanguage language) =>
+      language == AppLanguage.jp ? 'けってい' : 'OK';
+  static String exitQuestion(AppLanguage language) => language == AppLanguage.jp
+      ? 'ホーム画面へ戻りますか？'
+      : 'Return to the home screen?';
+  static String yes(AppLanguage language) =>
+      language == AppLanguage.jp ? 'はい' : 'Yes';
+  static String no(AppLanguage language) =>
+      language == AppLanguage.jp ? 'いいえ' : 'No';
+  static String playAgain(AppLanguage language) =>
+      language == AppLanguage.jp ? 'もう一度プレイ' : 'Play again';
 
   static String settingsTitle(AppLanguage language) =>
       language == AppLanguage.jp ? '設定' : 'Settings';

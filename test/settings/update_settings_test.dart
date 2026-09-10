@@ -9,6 +9,38 @@ import 'package:that_nameless_game/settings/save_settings.dart';
 
 void main() {
   test(
+    'awarding a mode star preserves other modes and waits for storage',
+    () async {
+      final snapshots = <AppSettings>[];
+      final container = ProviderContainer(
+        overrides: [
+          settingsRepositoryProvider.overrideWithValue(
+            _RecordingRepository((settings) async {
+              snapshots.add(settings);
+            }),
+          ),
+          audioControllerProvider.overrideWithValue(AudioController.silent()),
+          initialSettingsProvider.overrideWithValue(
+            AppSettings.defaults(AppLanguage.jp),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final awarded = <StarMode>{};
+      for (final mode in StarMode.values) {
+        await container.read(appSettingsProvider.notifier).awardStar(mode);
+        awarded.add(mode);
+        for (final candidate in StarMode.values) {
+          expect(
+            snapshots.last.hasStar(candidate),
+            awarded.contains(candidate),
+          );
+        }
+        expect(container.read(appSettingsProvider), snapshots.last);
+      }
+    },
+  );
+  test(
     'save failure preserves state and does not block the next queued save',
     () async {
       final firstStarted = Completer<void>();
