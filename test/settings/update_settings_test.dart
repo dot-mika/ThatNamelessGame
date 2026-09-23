@@ -1,0 +1,145 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:that_nameless_game/audio/audio_controller.dart';
+import 'package:that_nameless_game/settings/settings_state.dart';
+import 'package:that_nameless_game/settings/update_settings.dart';
+import 'package:that_nameless_game/settings/save_settings.dart';
+
+void main() {
+  test('star progress distinguishes clear, blue, yellow, draws and losses', () {
+    var settings = AppSettings.defaults(AppLanguage.jp);
+    expect(settings.starAppearance(StarMode.easy), StarAppearance.clear);
+
+    settings = settings.recordCompletedGame(
+      StarMode.easy,
+      won: true,
+      draw: false,
+    );
+    expect(settings.starAppearance(StarMode.easy), StarAppearance.blue);
+
+    settings = settings.recordCompletedGame(
+      StarMode.easy,
+      won: false,
+      draw: true,
+    );
+    expect(settings.easyWinStreak, 1);
+
+    for (var i = 0; i < 4; i++) {
+      settings = settings.recordCompletedGame(
+        StarMode.easy,
+        won: true,
+        draw: false,
+      );
+    }
+    expect(settings.starAppearance(StarMode.easy), StarAppearance.yellow);
+
+    settings = settings.recordCompletedGame(
+      StarMode.easy,
+      won: false,
+      draw: false,
+    );
+    expect(settings.starAppearance(StarMode.easy), StarAppearance.blue);
+
+    for (var i = 0; i < 5; i++) {
+      settings = settings.recordCompletedGame(
+        StarMode.twoPlayer,
+        won: false,
+        draw: i.isEven,
+      );
+    }
+    expect(settings.starAppearance(StarMode.twoPlayer), StarAppearance.yellow);
+  });
+
+  test(
+    'awarding a mode star preserves other modes and waits for storage',
+    () async {
+      final snapshots = <AppSettings>[];
+      final container = ProviderContainer(
+        overrides: [
+          settingsRepositoryProvider.overrideWithValue(
+            _RecordingRepository((settings) async {
+              snapshots.add(settings);
+            }),
+          ),
+          audioControllerProvider.overrideWithValue(AudioController.silent()),
+          initialSettingsProvider.overrideWithValue(
+            AppSettings.defaults(AppLanguage.jp),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final awarded = <StarMode>{};
+      for (final mode in StarMode.values) {
+        await container.read(appSettingsProvider.notifier).awardStar(mode);
+        awarded.add(mode);
+        for (final candidate in StarMode.values) {
+          expect(
+            snapshots.last.hasStar(candidate),
+            awarded.contains(candidate),
+          );
+        }
+        expect(container.read(appSettingsProvider), snapshots.last);
+      }
+    },
+  );
+  test(
+    'save failure preserves state and does not block the next queued save',
+    () async {
+      final firstStarted = Completer<void>();
+      final firstSave = Completer<void>();
+      final secondSaved = Completer<void>();
+      final snapshots = <AppSettings>[];
+      final repository = _RecordingRepository((settings) async {
+        snapshots.add(settings);
+        if (snapshots.length == 1) {
+          firstStarted.complete();
+          await firstSave.future;
+        } else {
+          secondSaved.complete();
+        }
+      });
+      final audio = AudioController.silent();
+      final container = ProviderContainer(
+        overrides: [
+          settingsRepositoryProvider.overrideWithValue(repository),
+          audioControllerProvider.overrideWithValue(audio),
+          initialSettingsProvider.overrideWithValue(
+            AppSettings.defaults(AppLanguage.jp),
+          ),
+        ],
+      );
+      addTearDown(() async {
+        container.dispose();
+        await audio.dispose();
+      });
+      final notifier = container.read(appSettingsProvider.notifier);
+      notifier.setLanguage(AppLanguage.en);
+      await firstStarted.future;
+      notifier.setTimeLimit(TimeLimit.seconds30);
+      expect(
+        container.read(appSettingsProvider).timeLimit,
+        TimeLimit.seconds30,
+      );
+      expect(snapshots, hasLength(1));
+      firstSave.completeError(StateError('disk unavailable'));
+      await secondSaved.future;
+      expect(snapshots[0].timeLimit, TimeLimit.seconds15);
+      expect(snapshots[1].timeLimit, TimeLimit.seconds30);
+      expect(snapshots[1].language, AppLanguage.en);
+      expect(container.read(appSettingsProvider), snapshots[1]);
+    },
+  );
+}
+
+class _RecordingRepository implements SettingsRepository {
+  _RecordingRepository(this.onSave);
+  final Future<void> Function(AppSettings) onSave;
+
+  @override
+  Future<void> save(AppSettings settings) => onSave(settings);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
