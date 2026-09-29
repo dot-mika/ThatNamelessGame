@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:that_nameless_game/config/config.dart';
 import 'package:that_nameless_game/config/assets.dart';
+import 'package:that_nameless_game/config/config.dart';
 import 'package:that_nameless_game/screens/widgets/tappable_image.dart';
 
 void main() {

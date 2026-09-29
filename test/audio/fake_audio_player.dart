@@ -18,8 +18,9 @@ class FakeAudioPlayer implements AudioPlayer {
   Future<void> resume() async {
     if (disposed) throw StateError('resume after disposal');
     calls.add('resume');
-    await onResume?.call();
+    // 再生開始フックが待機中でも、再生開始済みの状態を観測できるようにする。
     playing = true;
+    await onResume?.call();
   }
 
   @override

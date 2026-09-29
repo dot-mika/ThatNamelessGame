@@ -17,8 +17,8 @@ enum GameEndReason { eliminated, timeout, loop }
 
 enum GameOutcome { nearWin, farWin, draw }
 
-/// Immutable rule set for one match. Keeping rule constants here prevents
-/// game logic from depending on unexplained numeric literals.
+/// 1対局に適用する不変のルールセット。
+/// ルール定数を集約し、ゲームロジック中の数値直書きを避ける。
 class GameRules {
   const GameRules({this.handCount = 3, this.fingerModulo = 5})
     : assert(handCount > 0),
@@ -41,9 +41,10 @@ class GamePosition {
        farHands = List.unmodifiable(farHands) {
     if (nearHands.length != rules.handCount ||
         farHands.length != rules.handCount ||
-        [...nearHands, ...farHands].any(
-          (value) => value < 0 || value >= rules.fingerModulo,
-        )) {
+        [
+          ...nearHands,
+          ...farHands,
+        ].any((value) => value < 0 || value >= rules.fingerModulo)) {
       throw ArgumentError(
         'Each side needs ${rules.handCount} hands with values '
         '0–${rules.fingerModulo - 1}.',
@@ -53,13 +54,14 @@ class GamePosition {
   final List<int> nearHands, farHands;
   final PlayerSide turn;
   final GameRules rules;
+
+  /// 指定側の手の値一覧を返す。
   List<int> hands(PlayerSide side) =>
       side == PlayerSide.near ? nearHands : farHands;
-  int get key =>
-      [...nearHands, ...farHands].fold(
-        turn.index,
-        (key, value) => key * rules.fingerModulo + value,
-      );
+  int get key => [
+    ...nearHands,
+    ...farHands,
+  ].fold(turn.index, (key, value) => key * rules.fingerModulo + value);
 
   @override
   bool operator ==(Object other) =>
@@ -94,12 +96,13 @@ class GameMove {
   int get hashCode => Object.hash(attackerPosition, targetPosition);
 }
 
-
 /// 終局理由と勝敗をまとめた結果データ。
 class GameResult {
   const GameResult(this.reason, this.outcome);
   final GameEndReason reason;
   final GameOutcome outcome;
+
+  /// 勝者側に対応する対局結果を返す。
   static GameOutcome winner(PlayerSide side) =>
       side == PlayerSide.near ? GameOutcome.nearWin : GameOutcome.farWin;
 
@@ -110,7 +113,6 @@ class GameResult {
   @override
   int get hashCode => Object.hash(reason, outcome);
 }
-
 
 /// 局面に加えて、ループ判定用の既出局面を持つ対局データ。
 class GameSession {
@@ -129,7 +131,8 @@ class GameSession {
       visitedPositions.containsAll(other.visitedPositions);
 
   @override
-  int get hashCode => Object.hash(position, result, Object.hashAll(visitedPositions));
+  int get hashCode =>
+      Object.hash(position, result, Object.hashAll(visitedPositions));
 }
 
 /// UIや音に依存しない、ゲーム規則だけを扱うクラス。
@@ -171,10 +174,10 @@ class GameEngine {
             old.hands(old.turn)[move.attackerPosition.index]) %
         positionRules.fingerModulo;
     final next = GamePosition(
-        nearHands: old.turn == PlayerSide.near ? old.nearHands : target,
-        farHands: old.turn == PlayerSide.far ? old.farHands : target,
-        turn: old.turn.opponent,
-        rules: positionRules,
+      nearHands: old.turn == PlayerSide.near ? old.nearHands : target,
+      farHands: old.turn == PlayerSide.far ? old.farHands : target,
+      turn: old.turn.opponent,
+      rules: positionRules,
     );
     GameResult? result;
     if (target.every((v) => v == 0)) {
@@ -211,7 +214,6 @@ bool _sameHands(List<int> first, List<int> second) {
   return true;
 }
 
-/// Unordered triples and pairs permitted as starting hands.
 /// 2人プレイとかんたん用の通常初期局面を抽選する。
 class InitialPositionGenerator {
   InitialPositionGenerator(this.random);
@@ -225,6 +227,7 @@ class InitialPositionGenerator {
     ),
   );
 
+  /// 共通開始局面からランダムな対局を生成する。
   GameSession generate() {
     final pair = combinations[random.nextInt(combinations.length)];
     final a = [...pair.$1]..shuffle(random);
@@ -240,12 +243,12 @@ class InitialPositionGenerator {
   }
 }
 
-/// The fixed 28-opening pool used by normal and hard solo play.
 /// ふつう・むずかしい用の、仕様で固定された28局面を抽選する。
 class SoloInitialPositionGenerator {
   SoloInitialPositionGenerator(this.random);
   final Random random;
 
+  /// 1人対戦用の固定開始局面から対局を生成する。
   GameSession generate() {
     final opening = InitialHands.solo[random.nextInt(InitialHands.solo.length)];
     final near = [...opening.playerHands]..shuffle(random);

@@ -3,16 +3,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../settings/update_settings.dart';
-import '../../settings/settings_state.dart';
-import '../../config/config.dart';
-import '../../config/assets.dart';
 import '../../audio/audio_controller.dart';
-import '../settings/settings_screen.dart';
-import '../rules/rules_screen.dart';
-import '../play/play_screen.dart';
+import '../../config/assets.dart';
+import '../../config/config.dart';
 import '../../play/play_mode.dart';
 import '../../play/play_session.dart';
+import '../../settings/settings_notifier.dart';
+import '../../settings/settings_state.dart';
+import '../play/play_screen.dart';
+import '../rules/rules_screen.dart';
+import '../settings/settings_screen.dart';
 import '../widgets/tappable_image.dart';
 
 /// モード選択、星の進捗、設定画面への入口を表示するホーム画面。
@@ -53,7 +53,7 @@ class HomeScreen extends ConsumerWidget {
               key: const Key('rulesButton'),
               asset: Assets.rules(language),
               semanticLabel: AppStrings.rules(language),
-              onTap: () => _openRules(context, ref),
+              onTap: () => _openInstant(context, ref, const RulesScreen()),
             ),
           ),
           Positioned(
@@ -65,37 +65,17 @@ class HomeScreen extends ConsumerWidget {
               key: const Key('settingsButton'),
               asset: Assets.settingsIcon,
               semanticLabel: AppStrings.settingsTitle(language),
-              onTap: () => _openSettings(context, ref),
+              onTap: () => _openInstant(context, ref, const SettingsScreen()),
             ),
           ),
-          _ModeButton(
-            left: 40,
-            asset: Assets.playTwo(language),
-            star: settings.starAppearance(StarMode.twoPlayer),
-            semanticLabel: AppStrings.playTwo(language),
-            onTap: () => _openPlay(context, ref, PlayMode.twoPlayer),
-          ),
-          _ModeButton(
-            left: 349,
-            asset: Assets.playEasy(language),
-            star: settings.starAppearance(StarMode.easy),
-            semanticLabel: AppStrings.playEasy(language),
-            onTap: () => _openPlay(context, ref, PlayMode.easy),
-          ),
-          _ModeButton(
-            left: 658,
-            asset: Assets.playNormal(language),
-            star: settings.starAppearance(StarMode.normal),
-            semanticLabel: AppStrings.playNormal(language),
-            onTap: () => _openPlay(context, ref, PlayMode.normal),
-          ),
-          _ModeButton(
-            left: 967,
-            asset: Assets.playHard(language),
-            star: settings.starAppearance(StarMode.hard),
-            semanticLabel: AppStrings.playHard(language),
-            onTap: () => _openPlay(context, ref, PlayMode.hard),
-          ),
+          for (final definition in _HomeModeDefinition.values)
+            _ModeButton(
+              left: definition.left,
+              asset: definition.asset(language),
+              star: settings.starAppearance(definition.mode.starMode),
+              semanticLabel: definition.label(language),
+              onTap: () => _openPlay(context, ref, definition.mode),
+            ),
         ],
       ),
     );
@@ -107,13 +87,16 @@ class HomeScreen extends ConsumerWidget {
     WidgetRef ref,
     PlayMode mode,
   ) async {
-    unawaited(ref.read(audioControllerProvider).play(SoundEffect.tapButton));
+    ref.playTapSound();
     await Navigator.of(context).push<void>(
       PageRouteBuilder<void>(
         pageBuilder: (_, _, _) => ProviderScope(
           overrides: [playModeProvider.overrideWithValue(mode)],
           child: const PlayScreen(),
         ),
+        // スライド中もホーム画面を背面に描画し、透明なScaffold越しに
+        // アプリの黒い土台が一瞬見えるのを防ぐ。
+        opaque: false,
         transitionsBuilder: (_, animation, _, child) => SlideTransition(
           position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
               .animate(
@@ -127,28 +110,50 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  /// 設定画面は対局状態を持たないため、Providerの上書きなしで開く。
-  Future<void> _openRules(BuildContext context, WidgetRef ref) async {
-    unawaited(ref.read(audioControllerProvider).play(SoundEffect.tapButton));
+  /// ルール・設定画面は対局状態を持たないため、Providerの上書きなしで即時に開く。
+  Future<void> _openInstant(
+    BuildContext context,
+    WidgetRef ref,
+    Widget page,
+  ) async {
+    ref.playTapSound();
     await Navigator.of(context).push<void>(
       PageRouteBuilder<void>(
-        pageBuilder: (_, _, _) => const RulesScreen(),
+        pageBuilder: (_, _, _) => page,
+        // 即時遷移でも、最初の描画フレームが来るまではホームを残す。
+        opaque: false,
         transitionDuration: Duration.zero,
         reverseTransitionDuration: Duration.zero,
       ),
     );
   }
+}
 
-  Future<void> _openSettings(BuildContext context, WidgetRef ref) async {
-    unawaited(ref.read(audioControllerProvider).play(SoundEffect.tapButton));
-    await Navigator.of(context).push<void>(
-      PageRouteBuilder<void>(
-        pageBuilder: (_, _, _) => const SettingsScreen(),
-        transitionDuration: Duration.zero,
-        reverseTransitionDuration: Duration.zero,
-      ),
-    );
-  }
+/// ホーム画面にある4つのモード選択ボタンの定義。
+enum _HomeModeDefinition {
+  twoPlayer(PlayMode.twoPlayer, 40),
+  easy(PlayMode.easy, 349),
+  normal(PlayMode.normal, 658),
+  hard(PlayMode.hard, 967);
+
+  const _HomeModeDefinition(this.mode, this.left);
+
+  final PlayMode mode;
+  final double left;
+
+  String asset(AppLanguage language) => switch (this) {
+    twoPlayer => Assets.playTwo(language),
+    easy => Assets.playEasy(language),
+    normal => Assets.playNormal(language),
+    hard => Assets.playHard(language),
+  };
+
+  String label(AppLanguage language) => switch (this) {
+    twoPlayer => AppStrings.playTwo(language),
+    easy => AppStrings.playEasy(language),
+    normal => AppStrings.playNormal(language),
+    hard => AppStrings.playHard(language),
+  };
 }
 
 /// モード選択画像の上に、進捗に応じた星を重ねる部品。

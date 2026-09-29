@@ -1,13 +1,13 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../config/config.dart';
-import '../settings/settings_state.dart';
 import '../config/assets.dart';
+import '../config/config.dart';
+import '../diagnostics/app_error_handler.dart';
+import '../settings/settings_state.dart';
 
 /// BGMと効果音を事前ロードし、設定・前景状態に合わせて再生を同期する。
 class AudioController {
@@ -32,13 +32,16 @@ class AudioController {
   bool? _bgmPlaying = false;
   bool _resultPlaying = false;
   Completer<void>? _resultStopped;
-  bool _playSuspended = false;
-  Future<void> _commands = Future<void>.value();
+  final _playSuspensionOwners = <Object>{};
+  final _commands = _AudioCommandQueue();
+  // カウントダウンは同じSEプレイヤーを連続で使うため、通常SEとは
+  // 別に到着順で直列化する。
+  final _countdownCommands = _AudioCommandQueue();
+  int _countdownGeneration = 0;
   Future<void>? _disposal;
   final _disposeRequested = Completer<void>();
 
-  /// 実機用プレイヤーを生成する。初期化できない場合は無音版を返し、
-  /// 音だけの失敗でゲーム本体が起動不能にならないようにする。
+  /// 音声プレイヤーを事前準備してコントローラーを作る。
   static Future<AudioController> create() async {
     try {
       /// ゲームのBGM・効果音を再生するが、ユーザーが別アプリで流している音楽は邪魔しない
@@ -54,10 +57,11 @@ class AudioController {
         ),
       );
     } catch (error, stackTrace) {
-      developer.log(
-        'Audio context setup failed; continuing without audio.',
-        error: error,
-        stackTrace: stackTrace,
+      AppErrorHandler.recordHandled(
+        error,
+        stackTrace,
+        source: ErrorSource.audio,
+        message: 'Audio context setup failed; continuing without audio.',
       );
       return AudioController.silent();
     }
@@ -76,6 +80,7 @@ class AudioController {
     return AudioController._(bgmPlayer, effectPlayers);
   }
 
+  /// BGMプレイヤーを準備し、失敗時はnullを返す。
   static Future<AudioPlayer?> _prepareBgm() async {
     AudioPlayer? player;
     try {
@@ -87,16 +92,18 @@ class AudioController {
       await player.setSource(AssetSource(Assets.bgm));
       return player;
     } catch (error, stackTrace) {
-      developer.log(
-        '[audio controller] BGM preload failed; continuing without BGM.',
-        error: error,
-        stackTrace: stackTrace,
+      AppErrorHandler.recordHandled(
+        error,
+        stackTrace,
+        source: ErrorSource.audio,
+        message: 'BGM preload failed; continuing without BGM.',
       );
       await player?.dispose();
       return null;
     }
   }
 
+  /// 指定した効果音プレイヤーを準備する。
   static Future<_PreparedEffect?> _prepareEffect(SoundEffect effect) async {
     AudioPlayer? player;
     try {
@@ -105,16 +112,18 @@ class AudioController {
       await player.setSource(AssetSource(effect.asset));
       return _PreparedEffect(effect, player);
     } catch (error, stackTrace) {
-      developer.log(
-        '[audio controller] ${effect.name} preload failed; continuing without it.',
-        error: error,
-        stackTrace: stackTrace,
+      AppErrorHandler.recordHandled(
+        error,
+        stackTrace,
+        source: ErrorSource.audio,
+        message: '${effect.name} preload failed; continuing without it.',
       );
       await player?.dispose();
       return null;
     }
   }
 
+  /// 初期設定と前景状態をまとめて音声状態へ反映する。
   Future<void> applySettings(
     AppSettings settings, {
     required bool foreground,
@@ -126,45 +135,41 @@ class AudioController {
     await _syncBgm();
   }
 
+  /// BGMの有効状態を更新する。
   Future<void> setBgmEnabled(bool enabled) async {
     if (_disposed) return;
     _bgmEnabled = enabled;
     await _syncBgm();
   }
 
+  /// 効果音の有効状態を更新する。
   void setSeEnabled(bool enabled) {
     if (!_disposed) _seEnabled = enabled;
   }
 
+  /// アプリの前景・背景状態を音声再生へ反映する。
   Future<void> setForeground(bool foreground) async {
     if (_disposed) return;
     _foreground = foreground;
     await _syncBgm();
   }
 
-  // プレイヤーへの操作を直列化し、破棄要求後の未実行操作は捨てる。
-  /// BGMと通常SEの操作を直列化し、pause/resumeの競合を防ぐ。
+  /// BGMと通常SEの操作を直列化し、一時停止・再開の競合を防ぐ。
+  /// 破棄要求後の未実行操作は捨てる。
   Future<void> _enqueue(Future<void> Function() operation) {
     if (_disposed) return Future<void>.value();
-    _commands = _commands.then((_) async {
-      if (_disposed) return;
-      try {
-        await operation();
-      } catch (error, stackTrace) {
-        developer.log(
-          '[audio controller] Audio operation failed.',
-          error: error,
-          stackTrace: stackTrace,
-        );
-      }
+    return _commands.enqueue(() async {
+      if (!_disposed) await operation();
     });
-    return _commands;
   }
 
-  /// 現在の設定・前景状態・対局状態からBGMの再生要否を再計算する。
+  /// 現在の各種フラグからBGMの再生・停止を同期する。
   Future<void> _syncBgm() => _enqueue(() async {
     final shouldPlay =
-        _bgmEnabled && _foreground && !_resultPlaying && !_playSuspended;
+        _bgmEnabled &&
+        _foreground &&
+        !_resultPlaying &&
+        _playSuspensionOwners.isEmpty;
     if (shouldPlay == _bgmPlaying) return;
     final player = _bgmPlayer;
     if (player == null) return;
@@ -177,23 +182,29 @@ class AudioController {
       _bgmPlaying = shouldPlay;
     } catch (error, stackTrace) {
       _bgmPlaying = null;
-      developer.log(
-        '[audio controller] Could not update BGM state.',
-        error: error,
-        stackTrace: stackTrace,
+      AppErrorHandler.recordHandled(
+        error,
+        stackTrace,
+        source: ErrorSource.audio,
+        message: 'Could not update BGM state.',
       );
     }
   });
 
   bool get _canPlayEffects => _seEnabled && _foreground && !_disposed;
 
-  Future<void> setPlaySuspended(bool suspended) async {
+  /// 対局中の一時停止状態を更新する。
+  Future<void> setPlaySuspended(Object owner, bool suspended) async {
     if (_disposed) return;
-    _playSuspended = suspended;
+    if (suspended) {
+      _playSuspensionOwners.add(owner);
+    } else {
+      _playSuspensionOwners.remove(owner);
+    }
     await _syncBgm();
   }
 
-  /// 通常SEは他の音声操作との順序を保って再生する。
+  /// 指定した通常の効果音を再生する。
   Future<void> play(SoundEffect effect) =>
       _enqueue(() => _restartEffect(effect));
 
@@ -207,20 +218,47 @@ class AudioController {
       if (!_canPlayEffects) return;
       await player.resume();
     } catch (error, stackTrace) {
-      developer.log(
-        '[audio controller] Could not play ${effect.name}.',
-        error: error,
-        stackTrace: stackTrace,
+      AppErrorHandler.recordHandled(
+        error,
+        stackTrace,
+        source: ErrorSource.audio,
+        message: 'Could not play ${effect.name}.',
       );
     }
   }
 
-  /// Plays a countdown cue without waiting for unrelated BGM/effect commands.
+  /// 表示の秒境界とSEの開始時刻を揃えるため、BGMや他のSE操作とは別に実行する。
   ///
-  /// Countdown visuals are advanced on a one-second boundary. Routing these
-  /// cues through [_commands] made their audible start depend on the duration
-  /// of an earlier BGM pause or sound effect operation.
-  Future<void> playCountdownCue(SoundEffect effect) => _restartEffect(effect);
+  /// カウントダウン用プレイヤーへの stop → resume が重ならないようにし、
+  /// 終了・画面遷移後にキューへ残った古いSEは鳴らさない。
+  Future<void> playCountdownCue(SoundEffect effect) {
+    if (_disposed) return Future<void>.value();
+    final generation = _countdownGeneration;
+    return _countdownCommands.enqueue(
+      () => _restartCountdownCue(effect, generation),
+    );
+  }
+
+  Future<void> _restartCountdownCue(
+    SoundEffect effect,
+    int generation,
+  ) async {
+    if (!_canPlayEffects || generation != _countdownGeneration) return;
+    final player = _effectPlayers[effect];
+    if (player == null) return;
+    try {
+      await player.stop();
+      if (!_canPlayEffects || generation != _countdownGeneration) return;
+      await player.resume();
+    } catch (error, stackTrace) {
+      AppErrorHandler.recordHandled(
+        error,
+        stackTrace,
+        source: ErrorSource.audio,
+        message: 'Could not play ${effect.name}.',
+      );
+    }
+  }
 
   /// 結果SEの間だけBGMを止め、完了後に最新設定でBGMを戻す。
   Future<void> playResult(SoundEffect effect) async {
@@ -248,10 +286,11 @@ class AudioController {
               if (!completed.isCompleted) completed.complete();
             },
             onError: (Object error, StackTrace stackTrace) {
-              developer.log(
-                '[audio controller] Result playback failed.',
-                error: error,
-                stackTrace: stackTrace,
+              AppErrorHandler.recordHandled(
+                error,
+                stackTrace,
+                source: ErrorSource.audio,
+                message: 'Result playback failed.',
               );
               if (!completed.isCompleted) completed.complete();
             },
@@ -277,12 +316,10 @@ class AudioController {
     }
   }
 
-  /// Stops any in-progress sound effects, including the result sound.
-  ///
-  /// Stopping the result sound also releases [playResult]'s completion wait so
-  /// a new game can begin without an old result sound resuming later.
+  /// 結果音を含め、再生中の効果音をすべて停止する。
   Future<void> stopEffects() async {
     if (_disposed) return;
+    _countdownGeneration++;
     final stopped = _resultStopped;
     if (stopped != null && !stopped.isCompleted) stopped.complete();
     await _enqueue(() async {
@@ -292,11 +329,16 @@ class AudioController {
     });
   }
 
+  /// 保持している音声リソースを一度だけ解放する。
   Future<void> dispose() {
     if (_disposal != null) return _disposal!;
     _disposed = true;
+    _countdownGeneration++;
     _disposeRequested.complete();
-    return _disposal = _commands.then((_) async {
+    return _disposal = Future.wait([
+      _commands.completed,
+      _countdownCommands.completed,
+    ]).then((_) async {
       await Future.wait([
         if (_bgmPlayer != null) _bgmPlayer.dispose(),
         for (final player in _effectPlayers.values) player.dispose(),
@@ -309,9 +351,40 @@ final audioControllerProvider = Provider<AudioController>((ref) {
   throw StateError('AudioController must be supplied at bootstrap.');
 });
 
+/// 画面のボタン操作音を鳴らす短縮形。再生完了は待たない。
+extension TapSound on WidgetRef {
+  void playTapSound() =>
+      unawaited(read(audioControllerProvider).play(SoundEffect.tapButton));
+}
+
 class _PreparedEffect {
   const _PreparedEffect(this.effect, this.player);
 
   final SoundEffect effect;
   final AudioPlayer player;
+}
+
+/// 音声プレイヤーへの非同期操作を到着順に実行する内部キュー。
+class _AudioCommandQueue {
+  Future<void> _tail = Future<void>.value();
+
+  /// 操作を追加し、完了を待つFutureを返す。
+  Future<void> enqueue(Future<void> Function() operation) {
+    _tail = _tail.then((_) async {
+      try {
+        await operation();
+      } catch (error, stackTrace) {
+        AppErrorHandler.recordHandled(
+          error,
+          stackTrace,
+          source: ErrorSource.audio,
+          message: 'Audio operation failed.',
+        );
+      }
+    });
+    return _tail;
+  }
+
+  /// 追加済みのすべての操作が完了するFutureを返す。
+  Future<void> get completed => _tail;
 }

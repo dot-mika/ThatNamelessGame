@@ -1,17 +1,17 @@
-import 'dart:ui';
 import 'dart:developer' as developer;
+import 'dart:ui';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'settings_state.dart';
 
-/// SharedPreferencesへ設定を読み書きする永続化層。
-/// The write boundary used by state management. Keeping this small makes the
-/// notifier independent from SharedPreferences and easy to exercise in tests.
+/// 状態管理から永続化を切り離すための保存境界。
+/// NotifierをSharedPreferencesに依存させず、テスト時の差し替えを容易にする。
 abstract interface class SettingsStore {
   Future<void> save(AppSettings settings);
 }
 
+/// SharedPreferencesへ設定を読み書きする永続化層。
 class SettingsRepository implements SettingsStore {
   SettingsRepository._(this._preferences);
 
@@ -20,14 +20,20 @@ class SettingsRepository implements SettingsStore {
   static const _bgmKey = 'bgmEnabled';
   static const _seKey = 'seEnabled';
   static const _timeLimitKey = 'twoPlayerTimeLimitSeconds';
-  static const _starTwoPlayerKey = 'starTwoPlayer';
-  static const _starEasyKey = 'starEasy';
-  static const _starNormalKey = 'starNormal';
-  static const _starHardKey = 'starHard';
-  static const _twoPlayerCompletedKey = 'twoPlayerCompleted';
-  static const _easyWinStreakKey = 'easyWinStreak';
-  static const _normalWinStreakKey = 'normalWinStreak';
-  static const _hardWinStreakKey = 'hardWinStreak';
+
+  /// 保存済みデータとの互換のため、キー名は変更しない。
+  static const _starKeys = {
+    StarMode.twoPlayer: 'starTwoPlayer',
+    StarMode.easy: 'starEasy',
+    StarMode.normal: 'starNormal',
+    StarMode.hard: 'starHard',
+  };
+  static const _progressKeys = {
+    StarMode.twoPlayer: 'twoPlayerCompleted',
+    StarMode.easy: 'easyWinStreak',
+    StarMode.normal: 'normalWinStreak',
+    StarMode.hard: 'hardWinStreak',
+  };
 
   final SharedPreferences _preferences;
 
@@ -49,20 +55,18 @@ class SettingsRepository implements SettingsStore {
     final defaults = AppSettings.defaults(
       locale.languageCode == 'ja' ? AppLanguage.jp : AppLanguage.en,
     );
-    return AppSettings(
+    var settings = defaults.copyWith(
       language: _readLanguage(defaults.language),
       bgmEnabled: _readBool(_bgmKey, defaults.bgmEnabled),
       seEnabled: _readBool(_seKey, defaults.seEnabled),
       timeLimit: _readTimeLimit(defaults.timeLimit),
-      star2p: _readBool(_starTwoPlayerKey, defaults.star2p),
-      starEasy: _readBool(_starEasyKey, defaults.starEasy),
-      starNormal: _readBool(_starNormalKey, defaults.starNormal),
-      starHard: _readBool(_starHardKey, defaults.starHard),
-      twoPlayerCompleted: _readNonNegativeInt(_twoPlayerCompletedKey),
-      easyWinStreak: _readNonNegativeInt(_easyWinStreakKey),
-      normalWinStreak: _readNonNegativeInt(_normalWinStreakKey),
-      hardWinStreak: _readNonNegativeInt(_hardWinStreakKey),
     );
+    for (final mode in StarMode.values) {
+      settings = settings
+          .withStar(mode, _readBool(_starKeys[mode]!, defaults.hasStar(mode)))
+          .withProgressCount(mode, _readNonNegativeInt(_progressKeys[mode]!));
+    }
+    return settings;
   }
 
   AppLanguage _readLanguage(AppLanguage defaultValue) {
@@ -106,63 +110,30 @@ class SettingsRepository implements SettingsStore {
   }
 
   /// 設定値をすべて保存してから、初期化済みフラグを立てる。
+  @override
   Future<void> save(AppSettings settings) async {
     await Future.wait([
-      _requireSaved(
-        _preferences.setString(_languageKey, settings.language.name),
-        _languageKey,
-      ),
-      _requireSaved(
-        _preferences.setBool(_bgmKey, settings.bgmEnabled),
-        _bgmKey,
-      ),
-      _requireSaved(_preferences.setBool(_seKey, settings.seEnabled), _seKey),
-      _requireSaved(
-        _preferences.setInt(_timeLimitKey, settings.timeLimit.seconds),
-        _timeLimitKey,
-      ),
-      _requireSaved(
-        _preferences.setBool(_starTwoPlayerKey, settings.star2p),
-        _starTwoPlayerKey,
-      ),
-      _requireSaved(
-        _preferences.setBool(_starEasyKey, settings.starEasy),
-        _starEasyKey,
-      ),
-      _requireSaved(
-        _preferences.setBool(_starNormalKey, settings.starNormal),
-        _starNormalKey,
-      ),
-      _requireSaved(
-        _preferences.setBool(_starHardKey, settings.starHard),
-        _starHardKey,
-      ),
-      _requireSaved(
-        _preferences.setInt(
-          _twoPlayerCompletedKey,
-          settings.twoPlayerCompleted,
-        ),
-        _twoPlayerCompletedKey,
-      ),
-      _requireSaved(
-        _preferences.setInt(_easyWinStreakKey, settings.easyWinStreak),
-        _easyWinStreakKey,
-      ),
-      _requireSaved(
-        _preferences.setInt(_normalWinStreakKey, settings.normalWinStreak),
-        _normalWinStreakKey,
-      ),
-      _requireSaved(
-        _preferences.setInt(_hardWinStreakKey, settings.hardWinStreak),
-        _hardWinStreakKey,
-      ),
+      _writeString(_languageKey, settings.language.name),
+      _writeBool(_bgmKey, settings.bgmEnabled),
+      _writeBool(_seKey, settings.seEnabled),
+      _writeInt(_timeLimitKey, settings.timeLimit.seconds),
+      for (final mode in StarMode.values) ...[
+        _writeBool(_starKeys[mode]!, settings.hasStar(mode)),
+        _writeInt(_progressKeys[mode]!, settings.progressCount(mode)),
+      ],
     ]);
     // 全項目の保存完了後に、設定の初期化済みフラグを保存する。
-    await _requireSaved(
-      _preferences.setBool(_initializedKey, true),
-      _initializedKey,
-    );
+    await _writeBool(_initializedKey, true);
   }
+
+  Future<void> _writeString(String key, String value) =>
+      _requireSaved(_preferences.setString(key, value), key);
+
+  Future<void> _writeBool(String key, bool value) =>
+      _requireSaved(_preferences.setBool(key, value), key);
+
+  Future<void> _writeInt(String key, int value) =>
+      _requireSaved(_preferences.setInt(key, value), key);
 
   Future<void> _requireSaved(Future<bool> operation, String key) async {
     if (!await operation) throw StateError('Could not persist "$key".');

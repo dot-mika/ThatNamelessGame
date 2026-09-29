@@ -10,8 +10,8 @@ class CpuScheduler {
   Duration elapsed = Duration.zero;
   int step = 0;
 
-  /// 進められる操作があれば1つだけ進める。
-  /// 遅延フレームでも複数操作を一気に進めないため、CPUの
+  /// 経過時間を進め、次の演出操作を実行すべきか返す。
+  /// 遅延フレームでも操作は1回に1つしか進めないため、CPUの
   /// 「手選択 → 対象選択 → 決定」の表示間隔が潰れない。
   bool advance(Duration delta) {
     elapsed += delta.isNegative ? Duration.zero : delta;

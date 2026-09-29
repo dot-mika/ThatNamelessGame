@@ -17,8 +17,9 @@ void main() {
         effectPlayers: {SoundEffect.win: win},
       );
       addTearDown(audio.dispose);
+      final playOwner = Object();
       await audio.setBgmEnabled(true);
-      await audio.setPlaySuspended(true);
+      await audio.setPlaySuspended(playOwner, true);
       await audio.setForeground(false);
       await audio.setForeground(true);
       expect(bgm.playing, isFalse);
@@ -29,14 +30,30 @@ void main() {
       win.completion.add(null);
       await result;
       expect(bgm.playing, isFalse);
-      await audio.setPlaySuspended(false);
+      await audio.setPlaySuspended(playOwner, false);
       expect(bgm.playing, isTrue);
       await audio.setBgmEnabled(false);
-      await audio.setPlaySuspended(true);
-      await audio.setPlaySuspended(false);
+      await audio.setPlaySuspended(playOwner, true);
+      await audio.setPlaySuspended(playOwner, false);
       expect(bgm.playing, isFalse);
     },
   );
+  test('a previous play cannot resume BGM during a new play countdown', () async {
+    final bgm = FakeAudioPlayer();
+    final audio = AudioController.withPlayers(bgmPlayer: bgm);
+    addTearDown(audio.dispose);
+    final previousPlay = Object();
+    final nextPlay = Object();
+
+    await audio.setBgmEnabled(true);
+    await audio.setPlaySuspended(previousPlay, true);
+    await audio.setPlaySuspended(nextPlay, true);
+    await audio.setPlaySuspended(previousPlay, false);
+
+    expect(bgm.playing, isFalse);
+    await audio.setPlaySuspended(nextPlay, false);
+    expect(bgm.playing, isTrue);
+  });
   test(
     'OFF during an in-flight resume stops BGM after resume completes',
     () async {
@@ -177,6 +194,33 @@ void main() {
 
     releaseQueuedEffect.complete();
     await Future.wait([queued, audio.dispose()]);
+  });
+
+  test('countdown cues serialize operations for their shared player', () async {
+    final countdown = FakeAudioPlayer();
+    final audio = AudioController.withPlayers(
+      effectPlayers: {SoundEffect.countdown: countdown},
+    );
+    addTearDown(audio.dispose);
+    final firstStopStarted = Completer<void>();
+    final releaseFirstStop = Completer<void>();
+    countdown.onStop = () {
+      if (!firstStopStarted.isCompleted) {
+        firstStopStarted.complete();
+        return releaseFirstStop.future;
+      }
+      return Future<void>.value();
+    };
+
+    final first = audio.playCountdownCue(SoundEffect.countdown);
+    await firstStopStarted.future;
+    final second = audio.playCountdownCue(SoundEffect.countdown);
+    await Future<void>.delayed(Duration.zero);
+    expect(countdown.calls, ['stop']);
+
+    releaseFirstStop.complete();
+    await Future.wait([first, second]);
+    expect(countdown.calls, ['stop', 'resume', 'stop', 'resume']);
   });
 
   test(

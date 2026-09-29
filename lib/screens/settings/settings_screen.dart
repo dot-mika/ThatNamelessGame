@@ -1,21 +1,17 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../settings/update_settings.dart';
-import '../../config/config.dart';
-import '../../settings/settings_state.dart';
-import '../../config/assets.dart';
 import '../../audio/audio_controller.dart';
+import '../../config/assets.dart';
+import '../../config/config.dart';
+import '../../settings/settings_notifier.dart';
+import '../../settings/settings_state.dart';
 import '../widgets/tappable_image.dart';
 
 /// 言語、音、2人プレイ時間を変更する設定画面。
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  void _tapSound(WidgetRef ref) =>
-      unawaited(ref.read(audioControllerProvider).play(SoundEffect.tapButton));
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,7 +49,7 @@ class SettingsScreen extends ConsumerWidget {
               language: language,
               selected: settings.timeLimit,
               onSelected: (value) {
-                _tapSound(ref);
+                ref.playTapSound();
                 notifier.setTimeLimit(value);
               },
             ),
@@ -70,7 +66,7 @@ class SettingsScreen extends ConsumerWidget {
               key: const Key('seSelector'),
               value: settings.seEnabled,
               onChanged: (value) {
-                _tapSound(ref);
+                ref.playTapSound();
                 notifier.setSeEnabled(value);
               },
             ),
@@ -87,7 +83,7 @@ class SettingsScreen extends ConsumerWidget {
               key: const Key('bgmSelector'),
               value: settings.bgmEnabled,
               onChanged: (value) {
-                _tapSound(ref);
+                ref.playTapSound();
                 notifier.setBgmEnabled(value);
               },
             ),
@@ -103,7 +99,7 @@ class SettingsScreen extends ConsumerWidget {
             child: _LanguageSelector(
               language: language,
               onChanged: (value) {
-                _tapSound(ref);
+                ref.playTapSound();
                 notifier.setLanguage(value);
               },
             ),
@@ -118,7 +114,7 @@ class SettingsScreen extends ConsumerWidget {
               asset: Assets.settingsHome,
               semanticLabel: AppStrings.home(language),
               onTap: () {
-                _tapSound(ref);
+                ref.playTapSound();
                 Navigator.of(context).pop();
               },
             ),

@@ -13,10 +13,7 @@ Future<void> preloadAllImages(BuildContext context) async {
   final manifest = await AssetManifest.loadFromAssetBundle(bundle);
   final assets = manifest.listAssets().where((asset) {
     final path = asset.toLowerCase();
-    return (path.startsWith('assets/home/') ||
-            path.startsWith('assets/settings/') ||
-            path.startsWith('assets/play/') ||
-            path.startsWith('assets/rules/')) &&
+    return Assets.screenImageDirectories.any(path.startsWith) &&
         (path.endsWith('.png') ||
             path.endsWith('.jpg') ||
             path.endsWith('.jpeg') ||

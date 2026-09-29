@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:that_nameless_game/settings/settings_repository.dart';
 import 'package:that_nameless_game/settings/settings_state.dart';
-import 'package:that_nameless_game/settings/save_settings.dart';
 
 void main() {
   test('4つの星を個別のboolとして保存・復元できる', () async {

@@ -2,8 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// Figma aligns every hand by width; a selected hand grows vertically.
-/// 手のPNGへ外枠と選択状態の見た目を重ねて描画する部品。
+/// 手のPNGにプレイヤー色の縁取りを付けて描画する部品。
+/// 選択時は幅を固定したまま縦方向へ拡大する。
 class HandArtwork extends StatelessWidget {
   const HandArtwork({
     super.key,
@@ -13,7 +13,7 @@ class HandArtwork extends StatelessWidget {
   });
 
   static const frameWidth = 220.0;
-  // Selected PNGs are 250 × 300 while ordinary PNGs are 300 × 300.
+  // 選択時PNGは250×300、通常PNGは300×300である。
   static double frameHeight(bool selected) => selected ? 261 : frameWidth;
   static const _outlineRadius = 5.0;
   static const _outlineSamples = 12;
@@ -38,7 +38,7 @@ class HandArtwork extends StatelessWidget {
       clipBehavior: Clip.none,
       fit: StackFit.expand,
       children: [
-        // Dilate the alpha silhouette without tinting the original artwork.
+        // 元画像の色を変えず、アルファ形状だけを膨張させて縁取りする。
         for (var i = 0; i < _outlineSamples; i++)
           Transform.translate(
             offset: Offset(

@@ -35,7 +35,7 @@ class _TappableImageState extends State<TappableImage> {
     _busy = true;
     _cooldown = Timer(AppConfig.tapCooldown, () {});
     try {
-      // Navigator.push completes when the destination is closed.
+      // 画面遷移は遷移先が閉じるまで完了しない。
       await widget.onTap();
     } finally {
       _busy = false;
