@@ -76,13 +76,6 @@ test/                 # Logic, state-transition, and widget tests
 docs/                 # Specifications and licensing information
 ```
 
-## Testing
-
-After setting up Flutter, run:
-
-```bash
-flutter test
-```
 
 ## About This Public Repository
 
