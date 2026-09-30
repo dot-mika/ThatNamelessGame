@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 
 import 'config/config.dart';
 import 'diagnostics/app_error_handler.dart';
+import 'diagnostics/app_runtime_policy.dart';
+import 'diagnostics/release_recovery_overlay.dart';
 import 'diagnostics/test_error_logger.dart';
 import 'initialization/bootstrap.dart';
 import 'screens/home/home_screen.dart';
@@ -14,7 +16,9 @@ Future<void> main() async {
   // Flutterの機能をrunAppより前に使えるようにする
   WidgetsFlutterBinding.ensureInitialized();
 
-  await TestErrorLogger.initialize(enabled: enableTestErrorLog);
+  await TestErrorLogger.initialize(
+    enabled: AppRuntimePolicy.enableTestDiagnostics,
+  );
 
   // Flutterフレームワーク内で発生した例外を受け取る
   FlutterError.onError = AppErrorHandler.onFlutterError;
@@ -59,7 +63,9 @@ class ThatNamelessGame extends StatelessWidget {
           child: SizedBox(
             width: AppConfig.canvasWidth,
             height: AppConfig.canvasHeight,
-            child: child,
+            child: ReleaseRecoveryOverlay(
+              child: child ?? const SizedBox.shrink(),
+            ),
           ),
         ),
       ),

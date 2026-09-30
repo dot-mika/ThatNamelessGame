@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../audio/audio_controller.dart';
 import '../config/config.dart';
+import '../diagnostics/app_error_handler.dart';
 import '../game/game_engine.dart';
 import '../settings/settings_notifier.dart';
 import 'cpu_scheduler.dart';
@@ -340,8 +341,15 @@ class PlaySessionNotifier extends Notifier<PlayState> {
       move.then(
         (selected) => accept(() => selected),
         // 探索に失敗しても対局を止めず、最初の合法手で進める。
-        onError: (Object _, StackTrace _) =>
-            accept(() => _engine.legalMoves(_session).first),
+        onError: (Object error, StackTrace stackTrace) {
+          AppErrorHandler.recordHandled(
+            error,
+            stackTrace,
+            source: ErrorSource.gameplay,
+            message: 'CPU strategy failed; using the first legal move.',
+          );
+          accept(() => _engine.legalMoves(_session).first);
+        },
       ),
     );
   }

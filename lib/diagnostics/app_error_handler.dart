@@ -2,14 +2,9 @@ import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
 
+import 'app_runtime_policy.dart';
+import 'release_recovery_overlay.dart';
 import 'test_error_logger.dart';
-
-/// テスト配布ビルドで、例外を端末内のファイルへ記録するかどうか。
-/// 開発中に限り、`--dart-define=TEST_ERROR_LOG=true` で端末内ログを有効にする。
-///
-/// リリースビルドではフラグの指定有無にかかわらず常に無効。
-const enableTestErrorLog =
-    kDebugMode && bool.fromEnvironment('TEST_ERROR_LOG');
 
 /// 例外の発生元。送信先で絞り込めるよう、記録時に必ず付ける。
 enum ErrorSource {
@@ -27,6 +22,12 @@ enum ErrorSource {
 
   /// 設定の読込・保存
   settings,
+
+  /// CPU思考・対局進行
+  gameplay,
+
+  /// 画面素材の読込・デコード
+  assets,
 }
 
 // インスタンス化も継承もさせず、staticな機能をまとめる
@@ -37,7 +38,9 @@ enum ErrorSource {
 abstract final class AppErrorHandler {
   /// `FlutterError.onError` に渡すハンドラ。
   static void onFlutterError(FlutterErrorDetails details) {
-    FlutterError.presentError(details);
+    if (AppRuntimePolicy.showDeveloperErrorDetails) {
+      FlutterError.presentError(details);
+    }
     _report(
       details.exception,
       details.stack ?? StackTrace.current,
@@ -50,7 +53,9 @@ abstract final class AppErrorHandler {
   /// `PlatformDispatcher.instance.onError` に渡すハンドラ。
   static bool onPlatformError(Object error, StackTrace stackTrace) {
     // trueを返すとエンジンは何も表示しないため、ここで出力する
-    debugPrint('Uncaught error: $error\n$stackTrace');
+    if (AppRuntimePolicy.showDeveloperErrorDetails) {
+      debugPrint('Uncaught error: $error\n$stackTrace');
+    }
     _report(error, stackTrace, source: ErrorSource.platform, fatal: true);
     return true;
   }
@@ -62,12 +67,14 @@ abstract final class AppErrorHandler {
     required ErrorSource source,
     required String message,
   }) {
-    developer.log(
-      message,
-      name: source.name,
-      error: error,
-      stackTrace: stackTrace,
-    );
+    if (AppRuntimePolicy.showDeveloperErrorDetails) {
+      developer.log(
+        message,
+        name: source.name,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
     _report(error, stackTrace, source: source, fatal: false);
   }
 
@@ -77,7 +84,7 @@ abstract final class AppErrorHandler {
     required ErrorSource source,
     required bool fatal,
   }) {
-    if (enableTestErrorLog) {
+    if (AppRuntimePolicy.enableTestDiagnostics) {
       TestErrorLogger.writeSync(
         error,
         stackTrace,
@@ -85,11 +92,10 @@ abstract final class AppErrorHandler {
         fatal: fatal,
       );
     }
-
-    // TODO: リリース後の追跡ツールが決まったら、kReleaseModeでここから送信する
-
-    if (kDebugMode && fatal) {
-      // デバッガ接続時だけ一時停止する。投げ直さないため処理の流れは変わらない
+    if (fatal) ReleaseRecovery.show();
+    if (AppRuntimePolicy.pauseDebuggerOnError) {
+      // デバッガ接続時だけ一時停止する。投げ直さないため処理の流れは変わらない。
+      // debugでは復旧可能なエラーも、原因確認のためここで止める。
       developer.debugger(message: '[${source.name}] $error');
     }
   }

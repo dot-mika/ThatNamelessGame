@@ -6,7 +6,11 @@ import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
-/// テスト実行中にだけ、例外を端末内の JSON Lines ファイルへ記録する。
+import 'app_runtime_policy.dart';
+
+/// テスト実行中だけ、例外を端末のプライベート領域へ一時記録する。
+///
+/// テスト終了後は `tool/run_device_test.ps1` がPC側の `log/` へ回収する。
 ///
 /// `writeSync` は直後にアプリが終了しても記録を残せるよう、意図的に同期書き込みする。
 abstract final class TestErrorLogger {
@@ -64,9 +68,7 @@ abstract final class TestErrorLogger {
   }
 
   static String get _buildMode {
-    if (kReleaseMode) return 'release';
-    if (kProfileMode) return 'profile';
-    return 'debug';
+    return AppRuntimePolicy.buildMode.name;
   }
 
   static Future<Map<String, Object?>> _loadDeviceInfo() async {
@@ -80,6 +82,7 @@ abstract final class TestErrorLogger {
       final info = await deviceInfo.androidInfo;
       result.addAll({
         'deviceModel': info.model,
+        'deviceName': info.device,
         'deviceManufacturer': info.manufacturer,
         'osName': 'Android',
         'osVersion': info.version.release,

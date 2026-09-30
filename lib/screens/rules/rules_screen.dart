@@ -1,13 +1,13 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../audio/audio_controller.dart';
 import '../../config/assets.dart';
 import '../../config/config.dart';
+import '../../diagnostics/app_error_handler.dart';
 import '../../settings/settings_notifier.dart';
 import '../widgets/tappable_image.dart';
 
@@ -53,11 +53,20 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
   bool _isGifPage(int page) => page >= 3 && page <= 6;
 
   Future<void> _preloadRuleGifs() async {
-    final language = ref.read(appSettingsProvider).language;
-    await Future.wait([
-      for (final page in [3, 4, 5, 6])
-        rootBundle.load(Assets.rulesPage(page, language)),
-    ]);
+    try {
+      final language = ref.read(appSettingsProvider).language;
+      await Future.wait([
+        for (final page in [3, 4, 5, 6])
+          rootBundle.load(Assets.rulesPage(page, language)),
+      ]);
+    } catch (error, stackTrace) {
+      AppErrorHandler.recordHandled(
+        error,
+        stackTrace,
+        source: ErrorSource.assets,
+        message: 'Could not preload rule GIFs.',
+      );
+    }
   }
 
   void _onPageChanged(int index) {
@@ -185,14 +194,23 @@ class _RestartingGifState extends State<_RestartingGif> {
       _showFreshGif(sourceBytes);
       return;
     }
-    final request = ++_request;
-    final data = await rootBundle.load(widget.asset);
-    final sourceBytes = Uint8List.fromList(
-      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
-    );
-    if (!mounted || request != _request) return;
-    _sourceBytes = sourceBytes;
-    _showFreshGif(sourceBytes);
+    try {
+      final request = ++_request;
+      final data = await rootBundle.load(widget.asset);
+      final sourceBytes = Uint8List.fromList(
+        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+      );
+      if (!mounted || request != _request) return;
+      _sourceBytes = sourceBytes;
+      _showFreshGif(sourceBytes);
+    } catch (error, stackTrace) {
+      AppErrorHandler.recordHandled(
+        error,
+        stackTrace,
+        source: ErrorSource.assets,
+        message: 'Could not load rule GIF: ${widget.asset}',
+      );
+    }
   }
 
   void _showFreshGif(Uint8List sourceBytes) {

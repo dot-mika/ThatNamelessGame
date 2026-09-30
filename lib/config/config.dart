@@ -59,6 +59,8 @@ abstract final class AppStrings {
   static String playNormal(AppLanguage l) => _pick(l, 'ふつう', 'Normal');
   static String playHard(AppLanguage l) => _pick(l, 'むずかしい', 'Hard');
   static String retry(AppLanguage l) => _pick(l, '再試行', 'Retry');
+  static String restartApp(AppLanguage l) =>
+      _pick(l, '問題が発生しました。\nアプリを再起動してください。', 'Something went wrong.\nPlease restart the app.');
   static String previousPage(AppLanguage l) =>
       _pick(l, '前のページ', 'Previous page');
   static String nextPage(AppLanguage l) => _pick(l, '次のページ', 'Next page');
