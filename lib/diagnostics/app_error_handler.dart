@@ -6,51 +6,37 @@ import 'app_runtime_policy.dart';
 import 'release_recovery_overlay.dart';
 import 'test_error_logger.dart';
 
-/// 例外の発生元。送信先で絞り込めるよう、記録時に必ず付ける。
+/// 例外の発生元送信先で絞り込めるよう、記録時に必ず付ける
 enum ErrorSource {
-  /// build・layout・paintなど、Flutterフレームワーク内の未処理例外
-  flutter,
-
-  /// 非同期処理など、ルートIsolateで未処理になった例外
-  platform,
-
-  /// ホーム画面表示前の起動準備
-  startup,
-
-  /// BGM・効果音
-  audio,
-
-  /// 設定の読込・保存
-  settings,
-
-  /// CPU思考・対局進行
-  gameplay,
-
-  /// 画面素材の読込・デコード
-  assets,
+  flutter,  // build・layout・paintなど、Flutterフレームワーク内の未処理例外
+  platform, // 非同期処理など、ルートIsolateで未処理になった例外
+  startup,  // ホーム画面表示前の起動準備
+  audio,    // BGM・効果音
+  settings, // 設定の読込・保存
+  gameplay, // CPU思考・対局進行
+  assets,   // 画面素材の読込・デコード
 }
 
-// インスタンス化も継承もさせず、staticな機能をまとめる
-/// アプリ内の例外の共通窓口。
-///
-/// - 未処理例外（想定外のバグ）は `fatal` として扱い、開発時はデバッガを止める。
-/// - catch済みで回復できた例外は [recordHandled] で記録し、処理は止めない。
+/// アプリ内の例外の共通窓口
 abstract final class AppErrorHandler {
-  /// `FlutterError.onError` に渡すハンドラ。
+  /// `FlutterError.onError` に渡すハンドラ
   static void onFlutterError(FlutterErrorDetails details) {
+  
+    /// degugでのビルドのみ、FlutterErrorDetails の内容を開発者向けに表示する
     if (AppRuntimePolicy.showDeveloperErrorDetails) {
       FlutterError.presentError(details);
     }
+    
+    /// 例外を記録し、debugでのビルドの際はそこで実行を一時停止する
     _report(
       details.exception,
       details.stack ?? StackTrace.current,
       source: ErrorSource.flutter,
-      // 画像の読込失敗など、Flutterが軽微と判断したものは止めない
       fatal: !details.silent,
     );
   }
 
-  /// `PlatformDispatcher.instance.onError` に渡すハンドラ。
+  /// `PlatformDispatcher.instance.onError` に渡すハンドラ
   static bool onPlatformError(Object error, StackTrace stackTrace) {
     // trueを返すとエンジンは何も表示しないため、ここで出力する
     if (AppRuntimePolicy.showDeveloperErrorDetails) {
@@ -60,13 +46,15 @@ abstract final class AppErrorHandler {
     return true;
   }
 
-  /// catch済みで、アプリが処理を続けられる例外を記録する。
+  /// catch済みで、アプリが処理を続けられる例外を記録する
   static void recordHandled(
     Object error,
     StackTrace stackTrace, {
     required ErrorSource source,
     required String message,
   }) {
+  
+    // エラー詳細を表示する
     if (AppRuntimePolicy.showDeveloperErrorDetails) {
       developer.log(
         message,
@@ -75,15 +63,20 @@ abstract final class AppErrorHandler {
         stackTrace: stackTrace,
       );
     }
+    
+    /// 例外を記録し、debugでのビルドの際はそこで実行を一時停止する
     _report(error, stackTrace, source: source, fatal: false);
   }
 
+  /// catch済みで、アプリが処理を続けられる例外を記録する
+  /// debugでのビルドの際はそこで実行を一時停止する
   static void _report(
-    Object error,
-    StackTrace stackTrace, {
-    required ErrorSource source,
-    required bool fatal,
+    Object error, // 何のエラーか
+    StackTrace stackTrace, { // どこを通ってエラーが起きたか
+    required ErrorSource source, // どこ経由のエラーか
+    required bool fatal, // 致命的なエラーか否か
   }) {
+    // `--dart-define=TEST_ERROR_LOG=true` 指定時だけエラーをファイルに書き込む
     if (AppRuntimePolicy.enableTestDiagnostics) {
       TestErrorLogger.writeSync(
         error,
@@ -92,10 +85,12 @@ abstract final class AppErrorHandler {
         fatal: fatal,
       );
     }
+    
+    // リリースで復旧不能な例外が起きたことをアプリ全体へ通知する
     if (fatal) ReleaseRecovery.show();
+    
+    // デバッガーが接続されている場合、そこで実行を一時停止する
     if (AppRuntimePolicy.pauseDebuggerOnError) {
-      // デバッガ接続時だけ一時停止する。投げ直さないため処理の流れは変わらない。
-      // debugでは復旧可能なエラーも、原因確認のためここで止める。
       developer.debugger(message: '[${source.name}] $error');
     }
   }

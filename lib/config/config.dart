@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'app_language.dart';
 
-/// アプリ共通の色。配色の変更はここで行う。
+/// アプリ共通の色配色の変更はここで行う
 abstract final class AppColors {
   static const easyPlayer = Color(0xFFF2D087);
   static const normalPlayer = Color(0xFF8BCD7D);
@@ -11,10 +11,12 @@ abstract final class AppColors {
   static const farPlayer = Color(0xFFC297C8);
   static const disabled = Color(0xFFCCCCCC);
   static const settingsBlack = Color(0xFF7F7F7F);
+  static const dialogGray = Color(0xFF666666);
+  static const cpuTurnOverlay = Color(0x66000000);
   static const white = Color(0xFFFFFFFF);
 }
 
-/// 画面サイズや音量など、アプリ全体で共有する数値設定。
+/// 画面サイズや音量など、アプリ全体で共有する数値設定
 abstract final class AppConfig {
 
   static const canvasWidth = 1280.0;
@@ -23,9 +25,9 @@ abstract final class AppConfig {
   static const tapCooldown = Duration(milliseconds: 500);
 }
 
-/// 言語に応じて画面文言を返す簡易ローカライズ窓口。
+/// 言語に応じて画面文言を返す簡易ローカライズ窓口
 abstract final class AppStrings {
-  /// 日本語と英語の文言から、指定言語の方を返す。
+  /// 日本語と英語の文言から、指定言語の方を返す
   static String _pick(AppLanguage language, String jp, String en) =>
       language == AppLanguage.jp ? jp : en;
 
@@ -60,23 +62,20 @@ abstract final class AppStrings {
   static String playHard(AppLanguage l) => _pick(l, 'むずかしい', 'Hard');
   static String retry(AppLanguage l) => _pick(l, '再試行', 'Retry');
   static String restartApp(AppLanguage l) =>
-      _pick(l, '問題が発生しました。\nアプリを再起動してください。', 'Something went wrong.\nPlease restart the app.');
+      _pick(l, '問題が発生しました\nアプリを再起動してください', 'Something went wrong.\nPlease restart the app.');
   static String previousPage(AppLanguage l) =>
       _pick(l, '前のページ', 'Previous page');
   static String nextPage(AppLanguage l) => _pick(l, '次のページ', 'Next page');
 }
 
-/// 効果音と、そのアセットパス（assetsディレクトリからの相対パス）。
+/// 効果音の種類
 enum SoundEffect {
-  tapButton('audio/se/tap_button.mp3'),
-  tapHand('audio/se/tap_hand.mp3'),
-  win('audio/se/win.mp3'),
-  tapOk('audio/se/tap_ok.mp3'),
-  countdown('audio/se/countdown.mp3'),
-  start('audio/se/start.mp3'),
-  draw('audio/se/draw.mp3'),
-  lose('audio/se/lose.mp3');
-
-  const SoundEffect(this.asset);
-  final String asset;
+  tapButton,
+  tapHand,
+  win,
+  tapOk,
+  countdown,
+  start,
+  draw,
+  lose;
 }

@@ -5,13 +5,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'settings_state.dart';
 
-/// 状態管理から永続化を切り離すための保存境界。
-/// NotifierをSharedPreferencesに依存させず、テスト時の差し替えを容易にする。
+/// 状態管理から永続化を切り離すための保存境界
+/// NotifierをSharedPreferencesに依存させず、テスト時の差し替えを容易にする
 abstract interface class SettingsStore {
   Future<void> save(AppSettings settings);
 }
 
-/// SharedPreferencesへ設定を読み書きする永続化層。
+/// SharedPreferencesへ設定を読み書きする永続化層
 class SettingsRepository implements SettingsStore {
   SettingsRepository._(this._preferences);
 
@@ -21,7 +21,7 @@ class SettingsRepository implements SettingsStore {
   static const _seKey = 'seEnabled';
   static const _timeLimitKey = 'twoPlayerTimeLimitSeconds';
 
-  /// 保存済みデータとの互換のため、キー名は変更しない。
+  /// 保存済みデータとの互換のため、キー名は変更しない
   static const _starKeys = {
     StarMode.twoPlayer: 'starTwoPlayer',
     StarMode.easy: 'starEasy',
@@ -40,7 +40,7 @@ class SettingsRepository implements SettingsStore {
   static Future<SettingsRepository> create() async =>
       SettingsRepository._(await SharedPreferences.getInstance());
 
-  /// 保存済み設定を読み込み、初回起動時だけ既定値を保存する。
+  /// 保存済み設定を読み込み、初回起動時だけ既定値を保存する
   Future<AppSettings> loadOrCreate({Locale? deviceLocale}) async {
     final settings = load(deviceLocale: deviceLocale);
     if (_preferences.get(_initializedKey) != true) {
@@ -49,7 +49,7 @@ class SettingsRepository implements SettingsStore {
     return settings;
   }
 
-  /// 壊れた保存値は初期値へフォールバックして設定を復元する。
+  /// 壊れた保存値は初期値へフォールバックして設定を復元する
   AppSettings load({Locale? deviceLocale}) {
     final locale = deviceLocale ?? PlatformDispatcher.instance.locale;
     final defaults = AppSettings.defaults(
@@ -109,7 +109,7 @@ class SettingsRepository implements SettingsStore {
     developer.log('Stored setting "$key" is missing or invalid: $value');
   }
 
-  /// 設定値をすべて保存してから、初期化済みフラグを立てる。
+  /// 設定値をすべて保存してから、初期化済みフラグを立てる
   @override
   Future<void> save(AppSettings settings) async {
     await Future.wait([
@@ -122,7 +122,7 @@ class SettingsRepository implements SettingsStore {
         _writeInt(_progressKeys[mode]!, settings.progressCount(mode)),
       ],
     ]);
-    // 全項目の保存完了後に、設定の初期化済みフラグを保存する。
+    // 全項目の保存完了後に、設定の初期化済みフラグを保存する
     await _writeBool(_initializedKey, true);
   }
 

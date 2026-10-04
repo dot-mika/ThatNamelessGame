@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'app_language.dart';
 import 'config.dart';
 
-/// アセットパスを1か所に集約し、画面側へ文字列を散らさないための定義。
+/// アセットパスを1か所に集約し、画面側へ文字列を散らさないための定義
 abstract final class Assets {
   static const backgroundRainbow = 'assets/home/home_background.png';
   static const settingsIcon = 'assets/home/home_settings.png';
@@ -18,7 +18,7 @@ abstract final class Assets {
   static const rulesNextPage = 'assets/rules/buttons/rules_next_page.png';
   static const rulePageNumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-  /// 起動時に先読みする画面画像のディレクトリ。
+  /// 起動時に先読みする画面画像のディレクトリ
   static const screenImageDirectories = [
     'assets/home/',
     'assets/settings/',
@@ -32,7 +32,7 @@ abstract final class Assets {
     return 'assets/rules/${language.name}/rules_${page}_${language.name}$extension';
   }
 
-  /// 対局背景はファイル名に手番側の色コード（RRGGBB）を持つ。
+  /// 対局背景はファイル名に手番側の色コード（RRGGBB）を持つ
   static String playBackground(Color color) {
     final rgb = (color.toARGB32() & 0xFFFFFF)
         .toRadixString(16)
@@ -50,7 +50,7 @@ abstract final class Assets {
   static String judge(String name, AppLanguage language) =>
       'assets/play/judge/${language.name}/${name}_${language.name}.png';
 
-  /// 事前読み込みと画面表示で同じ解像度・キャッシュキーを使う。
+  /// 事前読み込みと画面表示で同じ解像度・キャッシュキーを使う
   static ImageProvider image(String asset, {AssetBundle? bundle}) {
     final provider = AssetImage(asset, bundle: bundle);
     if (asset == backgroundRainbow ||
@@ -65,7 +65,7 @@ abstract final class Assets {
     return provider;
   }
 
-  /// ホーム画面の言語別画像。
+  /// ホーム画面の言語別画像
   static String _home(String name, AppLanguage language) =>
       'assets/home/${language.name}/home_${name}_${language.name}.png';
   static String titleLogo(AppLanguage language) => _home('logo', language);
@@ -76,7 +76,27 @@ abstract final class Assets {
       _home('play1normal', language);
   static String playHard(AppLanguage language) => _home('play1hard', language);
 
-  // AssetSourceにはFlutterのassetsディレクトリからの相対パスを渡す。
-  // 効果音のパスはSoundEffectに定義する。
+  // AssetSourceにはFlutterのassetsディレクトリからの相対パスを渡す
+  // 効果音のパスもこのクラスに集約する
   static const bgm = 'audio/bgm/bgm.mp3';
+  static const seTapButton = 'audio/se/tap_button.mp3';
+  static const seTapHand = 'audio/se/tap_hand.mp3';
+  static const seWin = 'audio/se/win.mp3';
+  static const seTapOk = 'audio/se/tap_ok.mp3';
+  static const seCountdown = 'audio/se/countdown.mp3';
+  static const seStart = 'audio/se/start.mp3';
+  static const seDraw = 'audio/se/draw.mp3';
+  static const seLose = 'audio/se/lose.mp3';
+
+  /// 指定した効果音の、Flutter assets ディレクトリからの相対パス
+  static String soundEffect(SoundEffect effect) => switch (effect) {
+    SoundEffect.tapButton => seTapButton,
+    SoundEffect.tapHand => seTapHand,
+    SoundEffect.win => seWin,
+    SoundEffect.tapOk => seTapOk,
+    SoundEffect.countdown => seCountdown,
+    SoundEffect.start => seStart,
+    SoundEffect.draw => seDraw,
+    SoundEffect.lose => seLose,
+  };
 }

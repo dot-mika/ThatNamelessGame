@@ -35,6 +35,18 @@ void main() {
       [1, 1, 1],
     );
   });
+  test('sessions with the same visited-position set share a hash code', () {
+    final position = GamePosition(
+      nearHands: [1, 1, 1],
+      farHands: [1, 1, 1],
+      turn: PlayerSide.near,
+    );
+    final first = GameSession(position, visitedPositions: {1, 2, 3});
+    final second = GameSession(position, visitedPositions: {3, 2, 1});
+
+    expect(first, second);
+    expect(first.hashCode, second.hashCode);
+  });
   test('zero hands cannot attack or be attacked', () {
     final s = session([0, 2, 0], [0, 3, 1]);
     expect(engine.legalMoves(s), hasLength(2));

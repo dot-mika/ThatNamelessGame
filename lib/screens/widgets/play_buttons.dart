@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../config/config.dart';
 
-/// プレイ画面左上のホームへ戻る丸ボタン。
-/// 配置と対局操作は呼び出し側が担当する。
+/// プレイ画面左上のホームへ戻る丸ボタン
+/// 配置と対局操作は呼び出し側が担当する
 class PlayHomeButton extends StatelessWidget {
   const PlayHomeButton({
     super.key,
@@ -45,8 +45,8 @@ class PlayHomeButton extends StatelessWidget {
   );
 }
 
-/// 攻撃手と対象手が選ばれた後に使う決定ボタン。
-/// コールバックがnullなら無効表示になる。
+/// 攻撃手と対象手が選ばれた後に使う決定ボタン
+/// コールバックがnullなら無効表示になる
 class PlayConfirmButton extends StatelessWidget {
   const PlayConfirmButton({
     super.key,

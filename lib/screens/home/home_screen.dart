@@ -15,8 +15,8 @@ import '../rules/rules_screen.dart';
 import '../settings/settings_screen.dart';
 import '../widgets/tappable_image.dart';
 
-/// モード選択、星の進捗、設定画面への入口を表示するホーム画面。
-class HomeScreen extends ConsumerWidget {
+/// モード選択、星の進捗、設定画面への入口を表示するホーム画面
+class HomeScreen extends ConsumerWidget { // StatelessWidget + Riverpod の ref が使えるWidget
   const HomeScreen({super.key});
 
   @override
@@ -81,7 +81,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  /// 選択モードをその対局専用Providerへ渡して、スライド遷移で開始する。
+  /// 選択モードをその対局専用Providerへ渡して、スライド遷移で開始する
   Future<void> _openPlay(
     BuildContext context,
     WidgetRef ref,
@@ -95,7 +95,7 @@ class HomeScreen extends ConsumerWidget {
           child: const PlayScreen(),
         ),
         // スライド中もホーム画面を背面に描画し、透明なScaffold越しに
-        // アプリの黒い土台が一瞬見えるのを防ぐ。
+        // アプリの黒い土台が一瞬見えるのを防ぐ
         opaque: false,
         transitionsBuilder: (_, animation, _, child) => SlideTransition(
           position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
@@ -110,7 +110,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  /// ルール・設定画面は対局状態を持たないため、Providerの上書きなしで即時に開く。
+  /// ルール・設定画面は対局状態を持たないため、Providerの上書きなしで即時に開く
   Future<void> _openInstant(
     BuildContext context,
     WidgetRef ref,
@@ -120,7 +120,7 @@ class HomeScreen extends ConsumerWidget {
     await Navigator.of(context).push<void>(
       PageRouteBuilder<void>(
         pageBuilder: (_, _, _) => page,
-        // 即時遷移でも、最初の描画フレームが来るまではホームを残す。
+        // 即時遷移でも、最初の描画フレームが来るまではホームを残す
         opaque: false,
         transitionDuration: Duration.zero,
         reverseTransitionDuration: Duration.zero,
@@ -129,7 +129,7 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-/// ホーム画面にある4つのモード選択ボタンの定義。
+/// ホーム画面にある4つのモード選択ボタンの定義
 enum _HomeModeDefinition {
   twoPlayer(PlayMode.twoPlayer, 40),
   easy(PlayMode.easy, 349),
@@ -156,7 +156,7 @@ enum _HomeModeDefinition {
   };
 }
 
-/// モード選択画像の上に、進捗に応じた星を重ねる部品。
+/// モード選択画像の上に、進捗に応じた星を重ねる部品
 class _ModeButton extends StatelessWidget {
   const _ModeButton({
     required this.left,

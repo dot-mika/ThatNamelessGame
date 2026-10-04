@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../config/config.dart';
 
-/// 画像素材へタップ時の縮小フィードバックを付ける共通ボタン部品。
+/// 画像素材へタップ時の縮小フィードバックを付ける共通ボタン部品
 class TappableImage extends StatefulWidget {
   const TappableImage({
     super.key,
@@ -25,7 +25,7 @@ class TappableImage extends StatefulWidget {
   State<TappableImage> createState() => _TappableImageState();
 }
 
-/// 押下中かどうかだけを持ち、画像の見た目をアニメーションさせる。
+/// 押下中かどうかだけを持ち、画像の見た目をアニメーションさせる
 class _TappableImageState extends State<TappableImage> {
   bool _busy = false;
   Timer? _cooldown;
@@ -35,7 +35,7 @@ class _TappableImageState extends State<TappableImage> {
     _busy = true;
     _cooldown = Timer(AppConfig.tapCooldown, () {});
     try {
-      // 画面遷移は遷移先が閉じるまで完了しない。
+      // 画面遷移は遷移先が閉じるまで完了しない
       await widget.onTap();
     } finally {
       _busy = false;

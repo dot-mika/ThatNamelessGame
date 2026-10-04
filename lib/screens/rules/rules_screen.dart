@@ -11,7 +11,7 @@ import '../../diagnostics/app_error_handler.dart';
 import '../../settings/settings_notifier.dart';
 import '../widgets/tappable_image.dart';
 
-/// 9ページのルール画像と共通ナビゲーションを表示する画面。
+/// 9ページのルール画像と共通ナビゲーションを表示する画面
 class RulesScreen extends ConsumerStatefulWidget {
   const RulesScreen({super.key});
 
@@ -31,7 +31,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
     super.initState();
     _pageController = PageController();
     // GIFページへ移動する頃にはバイト列を用意済みにし、初回表示でも
-    // デコード待ちの黒い一瞬を出さない。
+    // デコード待ちの黒い一瞬を出さない
     unawaited(_preloadRuleGifs());
   }
 
@@ -153,9 +153,9 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
   }
 }
 
-/// 毎回新しいGIFデコーダーを使い、先頭フレームから再生する画像。
+/// 毎回新しいGIFデコーダーを使い、先頭フレームから再生する画像
 /// 新しい先頭フレームが描画されるまでは直前フレームを残すため、
-/// ページ送りの黒いちらつきが起きない。
+/// ページ送りの黒いちらつきが起きない
 class _RestartingGif extends StatefulWidget {
   const _RestartingGif({required this.asset, required this.revision});
 
@@ -236,7 +236,7 @@ class _RestartingGifState extends State<_RestartingGif> {
   Widget build(BuildContext context) {
     final currentBytes = _currentBytes;
     if (currentBytes == null) {
-      // 初回デコードが済むまでPageViewの背面（黒）を見せない。
+      // 初回デコードが済むまでPageViewの背面（黒）を見せない
       return const ColoredBox(color: Colors.white);
     }
     return Stack(

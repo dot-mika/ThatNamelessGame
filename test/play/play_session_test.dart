@@ -287,6 +287,24 @@ void main() {
       isTrue,
     );
   });
+  test('remaining time publishes only when the displayed second changes', () async {
+    await setup();
+    advance(PlayTiming.countdown.inMilliseconds);
+    var updates = 0;
+    final subscription = container.listen<PlayState>(
+      playSessionProvider,
+      (_, _) => updates++,
+    );
+    addTearDown(subscription.close);
+
+    advance(500);
+    expect(state().remaining, const Duration(seconds: 5));
+    expect(updates, 0);
+
+    advance(500);
+    expect(state().remaining, const Duration(seconds: 4));
+    expect(updates, 1);
+  });
   test(
     'attack hits once at 600ms, completes at 800ms, then resets timer',
     () async {
@@ -360,7 +378,8 @@ void main() {
       controller.setForeground(false);
       advance(20000);
       controller.setForeground(true);
-      expect(state().attackProgress, .5);
+      expect(state().phase, PlayPhase.attacking);
+      expect(state().session.position.turn, PlayerSide.near);
       advance(400);
       expect(state().session.position.turn, PlayerSide.far);
       controller.setForeground(false);
@@ -380,7 +399,8 @@ void main() {
       controller.requestExit();
       advance(20000);
       controller.cancelExit();
-      expect(state().attackProgress, .375);
+      expect(state().phase, PlayPhase.attacking);
+      expect(state().session.position.turn, PlayerSide.near);
       advance(500);
       expect(state().phase, PlayPhase.selecting);
       expect(state().remaining, const Duration(seconds: 5));

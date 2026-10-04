@@ -5,7 +5,7 @@ import 'package:flutter/widgets.dart';
 import '../settings/settings_state.dart';
 import 'audio_controller.dart';
 
-/// 音声の準備前からアプリの状態を追跡し、起動後も再生状態へ反映する。
+/// 音声の準備前からアプリの状態を追跡し、起動後も再生状態へ反映する
 class AudioObserver with WidgetsBindingObserver {
   // 今このアプリが前面にいればtrueで初期化する
   AudioObserver()

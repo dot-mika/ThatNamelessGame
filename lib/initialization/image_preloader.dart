@@ -5,8 +5,8 @@ import 'package:flutter/services.dart';
 
 import '../config/assets.dart';
 
-/// バンドルに登録された全画面の静止画像を、言語を問わず先読みする。
-/// 起動時に画面素材をメモリへ読み込み、初回表示のちらつきを防ぐ。
+/// バンドルに登録された全画面の静止画像を、言語を問わず先読みする
+/// 起動時に画面素材をメモリへ読み込み、初回表示のちらつきを防ぐ
 Future<void> preloadAllImages(BuildContext context) async {
   final bundle = DefaultAssetBundle.of(context);
   final configuration = createLocalImageConfiguration(context);
@@ -21,14 +21,14 @@ Future<void> preloadAllImages(BuildContext context) async {
             path.endsWith('.gif'));
   });
 
-  // 現在の全画像が収まる容量にする。素材追加時には使用量も見直す。
+  // 現在の全画像が収まる容量にする素材追加時には使用量も見直す
   final cache = PaintingBinding.instance.imageCache;
   const cacheBytes = 128 * 1024 * 1024;
   if (cache.maximumSizeBytes < cacheBytes) {
     cache.maximumSizeBytes = cacheBytes;
   }
 
-  // 最大4枚ずつ並行して読み込み、全画像の準備完了を待つ。
+  // 最大4枚ずつ並行して読み込み、全画像の準備完了を待つ
   const batchSize = 4;
   final batch = <Future<void>>[];
   for (final asset in assets) {

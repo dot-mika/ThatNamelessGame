@@ -14,14 +14,14 @@ import '../widgets/hand_artwork.dart';
 import '../widgets/play_buttons.dart';
 import '../widgets/tappable_image.dart';
 
-/// 対局状態を描画し、画面遷移完了後にカウントダウンを始める画面。
+/// 対局状態を描画し、画面遷移完了後にカウントダウンを始める画面
 class PlayScreen extends ConsumerStatefulWidget {
   const PlayScreen({super.key});
   @override
   ConsumerState<PlayScreen> createState() => _PlayScreenState();
 }
 
-/// 対局そのものはNotifierへ任せ、画面固有の予約・二重操作だけを保持する。
+/// 対局そのものはNotifierへ任せ、画面固有の予約・二重操作だけを保持する
 class _PlayScreenState extends ConsumerState<PlayScreen>
     with WidgetsBindingObserver {
   bool _leaving = false, _committing = false;
@@ -52,6 +52,9 @@ class _PlayScreenState extends ConsumerState<PlayScreen>
       _routeAnimation?.removeStatusListener(_onRouteStatus);
       _routeAnimation = animation;
       _routeAnimation?.addStatusListener(_onRouteStatus);
+      if (animation?.status == AnimationStatus.completed) {
+        _queueCountdownStart();
+      }
     }
   }
 
@@ -59,7 +62,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen>
     if (status == AnimationStatus.completed) _queueCountdownStart();
   }
 
-  /// 遷移完了後の次フレームで開始し、見えない間にカウントを消費しない。
+  /// 遷移完了後の次フレームで開始し、見えない間にカウントを消費しない
   void _queueCountdownStart() {
     if (_countdownStartQueued || !mounted) return;
     final state = ref.read(playSessionProvider);
@@ -75,7 +78,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen>
     WidgetsBinding.instance.ensureVisualUpdate();
   }
 
-  /// この画面が最前面にあり、遷移アニメーションが完了しているか。
+  /// この画面が最前面にあり、遷移アニメーションが完了しているか
   bool _routeSettled() {
     final route = ModalRoute.of(context);
     if (route == null) return true;
@@ -99,46 +102,50 @@ class _PlayScreenState extends ConsumerState<PlayScreen>
     if (state == AppLifecycleState.resumed) _queueCountdownStart();
   }
 
-  /// 終局済みなら結果を保存し、未完了なら連勝中断としてホームへ戻る。
+  /// 終局済みなら結果を保存し、未完了なら連勝中断としてホームへ戻る
   Future<void> _home({bool completed = false}) async {
     if (_committing || _leaving) return;
     _committing = true;
-    final session = ref.read(playSessionProvider.notifier);
-    if (completed) {
-      await session.commitResult();
-    } else {
-      await session.abandonGame();
+    try {
+      final session = ref.read(playSessionProvider.notifier);
+      if (completed) {
+        await session.commitResult();
+      } else {
+        await session.abandonGame();
+      }
+      if (!mounted) return;
+      await ref.read(audioControllerProvider).stopEffects();
+      if (!mounted) return;
+      ref.playTapSound();
+      setState(() => _leaving = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context).pop();
+      });
+    } finally {
+      if (mounted && !_leaving) _committing = false;
     }
-    if (!mounted) return;
-    await ref.read(audioControllerProvider).stopEffects();
-    if (!mounted) return;
-    ref.playTapSound();
-    setState(() => _leaving = true);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) Navigator.of(context).pop();
-    });
   }
 
-  /// 結果を一度だけ保存してから、同じモードで新しい対局を開始する。
+  /// 結果を一度だけ保存してから、同じモードで新しい対局を開始する
   Future<void> _replay() async {
     if (_committing || _leaving) return;
     _committing = true;
-    final controller = ref.read(playSessionProvider.notifier);
-    final id = ref.read(playSessionProvider).operationId;
-    await controller.commitResult();
-    if (!mounted) return;
-    await ref.read(audioControllerProvider).stopEffects();
-    if (!mounted) return;
-    controller.replay(id);
-    _committing = false;
+    try {
+      final controller = ref.read(playSessionProvider.notifier);
+      final id = ref.read(playSessionProvider).operationId;
+      await controller.commitResult();
+      if (!mounted) return;
+      await ref.read(audioControllerProvider).stopEffects();
+      if (!mounted) return;
+      controller.replay(id);
+    } finally {
+      if (mounted) _committing = false;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(playSessionProvider);
-    if (state.phase == PlayPhase.countdown && !state.countdownStarted) {
-      _queueCountdownStart();
-    }
     final controller = ref.read(playSessionProvider.notifier);
     final language = ref.watch(appSettingsProvider.select((s) => s.language));
     final turn = state.session.position.turn;
@@ -182,9 +189,12 @@ class _PlayScreenState extends ConsumerState<PlayScreen>
                     language: language,
                     onSelected: controller.select,
                   ),
-            // 移動する手を最前面に描画し、ほかの手の上を通過させる。
+            // 移動する手を最前面に描画し、ほかの手の上を通過させる
             if (state.attacking && state.attacker != null)
-              _GameHand(
+              _AnimatedAttackHand(
+                key: ValueKey(
+                  'attack-${state.operationId}-${state.attacker}-${state.target}',
+                ),
                 state: state,
                 side: turn,
                 hand: state.attacker!,
@@ -224,7 +234,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen>
                 child: IgnorePointer(
                   child: ColoredBox(
                     key: Key('cpuTurnOverlay'),
-                    color: Color(0x66000000),
+                    color: AppColors.cpuTurnOverlay,
                   ),
                 ),
               ),
@@ -265,10 +275,10 @@ class _PlayScreenState extends ConsumerState<PlayScreen>
   }
 }
 
-/// 画面全体を暗くし、下の操作を受け付けないようにする背景。
+/// 画面全体を暗くし、下の操作を受け付けないようにする背景
 const _dimBarrier = ModalBarrier(color: Color(0xB3000000), dismissible: false);
 
-/// 開始前のカウントダウン。2人プレイでは奥側にも反転して表示する。
+/// 開始前のカウントダウン2人プレイでは奥側にも反転して表示する
 class _CountdownOverlay extends StatelessWidget {
   const _CountdownOverlay({
     required this.countdown,
@@ -308,7 +318,7 @@ class _CountdownOverlay extends StatelessWidget {
   }
 }
 
-/// ホームへ戻るか確認するモーダル。
+/// ホームへ戻るか確認するモーダル
 class _ExitOverlay extends StatelessWidget {
   const _ExitOverlay({
     required this.language,
@@ -341,7 +351,7 @@ class _ExitOverlay extends StatelessWidget {
   );
 }
 
-/// 勝敗画像と、ホーム・もう一度プレイのボタンを表示する結果画面。
+/// 勝敗画像と、ホーム・もう一度プレイのボタンを表示する結果画面
 class _ResultOverlay extends StatelessWidget {
   const _ResultOverlay({
     required this.result,
@@ -357,7 +367,7 @@ class _ResultOverlay extends StatelessWidget {
   final FutureOr<void> Function() onHome;
   final FutureOr<void> Function() onReplay;
 
-  /// 指定側から見た勝敗・終局理由に対応する結果画像を返す。
+  /// 指定側から見た勝敗・終局理由に対応する結果画像を返す
   String _resultAsset(PlayerSide side) {
     final win = result.outcome == GameResult.winner(side);
     final label = result.outcome == GameOutcome.draw
@@ -413,7 +423,7 @@ class _ResultOverlay extends StatelessWidget {
   );
 }
 
-/// カウントダウン画像を、縦幅と中央位置を揃えて表示するレイアウト。
+/// カウントダウン画像を、縦幅と中央位置を揃えて表示するレイアウト
 class _CountdownLayout {
   const _CountdownLayout(this.width);
 
@@ -430,7 +440,7 @@ class _CountdownLayout {
   };
 }
 
-/// 盤面上の1本の手を、選択・攻撃アニメーションを含めて表示する部品。
+/// 盤面上の1本の手を、選択・攻撃アニメーションを含めて表示する部品
 class _GameHand extends StatelessWidget {
   const _GameHand({
     required this.state,
@@ -438,6 +448,7 @@ class _GameHand extends StatelessWidget {
     required this.hand,
     required this.language,
     required this.onSelected,
+    this.visualAttackProgress,
   });
 
   final PlayState state;
@@ -445,6 +456,7 @@ class _GameHand extends StatelessWidget {
   final HandPosition hand;
   final AppLanguage language;
   final void Function(PlayerSide side, HandPosition hand) onSelected;
+  final double? visualAttackProgress;
 
   @override
   Widget build(BuildContext context) {
@@ -456,12 +468,12 @@ class _GameHand extends StatelessWidget {
     final height = HandArtwork.frameHeight(selected);
     final origin = Offset(handLefts[hand.index], near ? 700 - height : 20);
     var position = origin;
-    if (state.attacking && own && selected && state.target != null) {
+    if (visualAttackProgress case final progress?
+        when own && selected && state.target != null) {
       final destination = Offset(
         handLefts[state.target!.index],
         near ? 170 : 286,
       );
-      final progress = state.attackProgress;
       final travel = progress <= .75
           ? Curves.easeInOut.transform(progress / .75)
           : (1 - progress) / .25;
@@ -500,7 +512,70 @@ class _GameHand extends StatelessWidget {
   }
 }
 
-/// 手番の残り秒数を、プレイヤー側に合わせて回転表示する部品。
+/// 攻撃の描画だけを Flutter のフレーム駆動で進める
+/// 着弾・完了は PlaySessionNotifier がそれぞれ 600ms / 800ms で扱う
+class _AnimatedAttackHand extends StatefulWidget {
+  const _AnimatedAttackHand({
+    super.key,
+    required this.state,
+    required this.side,
+    required this.hand,
+    required this.language,
+    required this.onSelected,
+  });
+
+  final PlayState state;
+  final PlayerSide side;
+  final HandPosition hand;
+  final AppLanguage language;
+  final void Function(PlayerSide side, HandPosition hand) onSelected;
+
+  @override
+  State<_AnimatedAttackHand> createState() => _AnimatedAttackHandState();
+}
+
+class _AnimatedAttackHandState extends State<_AnimatedAttackHand>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(duration: PlayTiming.attack, vsync: this);
+    if (!widget.state.attackPaused) _controller.forward();
+  }
+
+  @override
+  void didUpdateWidget(covariant _AnimatedAttackHand oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.state.attackPaused) {
+      _controller.stop();
+    } else if (!_controller.isAnimating && _controller.value < 1) {
+      _controller.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _controller,
+    builder: (context, _) => _GameHand(
+      state: widget.state,
+      side: widget.side,
+      hand: widget.hand,
+      language: widget.language,
+      onSelected: widget.onSelected,
+      visualAttackProgress: _controller.value,
+    ),
+  );
+}
+
+/// 手番の残り秒数を、プレイヤー側に合わせて回転表示する部品
 class _TurnTimerDisplay extends StatelessWidget {
   const _TurnTimerDisplay({
     required this.remainingSeconds,
@@ -528,7 +603,7 @@ class _TurnTimerDisplay extends StatelessWidget {
   );
 }
 
-/// 現在の手番を示す画像ラベルを、担当プレイヤー側に表示する部品。
+/// 現在の手番を示す画像ラベルを、担当プレイヤー側に表示する部品
 class _TurnLabel extends StatelessWidget {
   const _TurnLabel({
     required this.lowerControls,
@@ -560,10 +635,8 @@ class _TurnLabel extends StatelessWidget {
   );
 }
 
-/// 終了確認ダイアログの枠・文字・ボタンに使う灰色。
-const _dialogGray = Color(0xFF666666);
-
-/// 対局状態に依存しない終了確認オーバーレイ。
+/// 終了確認ダイアログの枠・文字・ボタンに使う灰色
+/// 対局状態に依存しない終了確認オーバーレイ
 class _ExitConfirmation extends StatelessWidget {
   const _ExitConfirmation({
     required this.language,
@@ -583,7 +656,7 @@ class _ExitConfirmation extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _dialogGray, width: 5),
+        border: Border.all(color: AppColors.dialogGray, width: 5),
       ),
       child: Stack(
         children: [
@@ -598,7 +671,7 @@ class _ExitConfirmation extends StatelessWidget {
               style: const TextStyle(
                   fontSize: 64,
                   height: 1,
-                  color: _dialogGray,
+                  color: AppColors.dialogGray,
                 ),
               ),
             ),
@@ -644,7 +717,7 @@ class _DialogButton extends StatelessWidget {
         height: 130,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: _dialogGray,
+          color: AppColors.dialogGray,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(

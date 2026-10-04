@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../config/app_language.dart';
 
-// 既存の利用側がsettings_stateからAppLanguageを参照できるよう再公開する。
+// 既存の利用側がsettings_stateからAppLanguageを参照できるよう再公開する
 export '../config/app_language.dart';
 
 enum TimeLimit {
@@ -22,7 +22,7 @@ enum TimeLimit {
   Duration? get duration =>
       this == TimeLimit.unlimited ? null : Duration(seconds: seconds);
 
-  /// 保存値の秒数から対応する制限時間を取得する。
+  /// 保存値の秒数から対応する制限時間を取得する
   static TimeLimit? fromSeconds(int seconds) {
     for (final value in values) {
       if (value.seconds == seconds) return value;
@@ -35,7 +35,7 @@ enum StarMode { twoPlayer, easy, normal, hard }
 
 enum StarAppearance { clear, blue, yellow }
 
-/// ホーム画面のスター表示に必要な値をまとめて提供する。
+/// ホーム画面のスター表示に必要な値をまとめて提供する
 @immutable
 class ModeProgress {
   const ModeProgress({required this.hasStar, required this.completed});
@@ -43,14 +43,14 @@ class ModeProgress {
   final bool hasStar;
   final int completed;
 
-  /// 進捗に応じたスターの見た目を返す。
+  /// 進捗に応じたスターの見た目を返す
   StarAppearance get appearance {
     if (completed >= 5) return StarAppearance.yellow;
     return hasStar ? StarAppearance.blue : StarAppearance.clear;
   }
 }
 
-/// 端末へ保存する設定と、ホーム画面の星進捗を持つ不変データ。
+/// 端末へ保存する設定と、ホーム画面の星進捗を持つ不変データ
 @immutable
 class AppSettings {
   const AppSettings({
@@ -92,7 +92,7 @@ class AppSettings {
   final int normalWinStreak;
   final int hardWinStreak;
 
-  /// 指定された項目だけを差し替えた設定を作る。
+  /// 指定された項目だけを差し替えた設定を作る
   AppSettings copyWith({
     AppLanguage? language,
     bool? bgmEnabled,
@@ -121,7 +121,7 @@ class AppSettings {
     hardWinStreak: hardWinStreak ?? this.hardWinStreak,
   );
 
-  /// 指定モードでスターを取得済みか判定する。
+  /// 指定モードでスターを取得済みか判定する
   bool hasStar(StarMode mode) => switch (mode) {
     StarMode.twoPlayer => star2p,
     StarMode.easy => starEasy,
@@ -129,12 +129,12 @@ class AppSettings {
     StarMode.hard => starHard,
   };
 
-  /// モード単位で進捗を参照するための読み取りAPI。
-  /// 個別フィールドは保存形式との互換性のために残している。
+  /// モード単位で進捗を参照するための読み取りAPI
+  /// 個別フィールドは保存形式との互換性のために残している
   ModeProgress progressFor(StarMode mode) =>
       ModeProgress(hasStar: hasStar(mode), completed: progressCount(mode));
 
-  /// 星の色に使う進捗数。2人は完了数、1人は連勝数。
+  /// 星の色に使う進捗数2人は完了数、1人は連勝数
   int progressCount(StarMode mode) => switch (mode) {
     StarMode.twoPlayer => twoPlayerCompleted,
     StarMode.easy => easyWinStreak,
@@ -142,7 +142,7 @@ class AppSettings {
     StarMode.hard => hardWinStreak,
   };
 
-  /// 指定モードのスター取得状態を差し替える。
+  /// 指定モードのスター取得状態を差し替える
   AppSettings withStar(StarMode mode, bool value) => switch (mode) {
     StarMode.twoPlayer => copyWith(star2p: value),
     StarMode.easy => copyWith(starEasy: value),
@@ -150,10 +150,10 @@ class AppSettings {
     StarMode.hard => copyWith(starHard: value),
   };
 
-  /// 指定モードをスター取得済みにする。
+  /// 指定モードをスター取得済みにする
   AppSettings markStar(StarMode mode) => withStar(mode, true);
 
-  /// 指定モードの進捗数（2人は完了数、1人は連勝数）を差し替える。
+  /// 指定モードの進捗数（2人は完了数、1人は連勝数）を差し替える
   AppSettings withProgressCount(StarMode mode, int value) {
     assert(value >= 0);
     return switch (mode) {
@@ -164,8 +164,8 @@ class AppSettings {
     };
   }
 
-  /// 終局済みの1試合を進捗へ反映する。
-  /// 2人は完了数、1人は勝敗に応じた連勝数を更新する。
+  /// 終局済みの1試合を進捗へ反映する
+  /// 2人は完了数、1人は勝敗に応じた連勝数を更新する
   AppSettings recordCompletedGame(
     StarMode mode, {
     required bool won,
@@ -177,12 +177,12 @@ class AppSettings {
     return draw ? this : withProgressCount(mode, 0);
   }
 
-  /// 星の有無と進捗数から、ホーム画面で使う3色状態を決める。
+  /// 星の有無と進捗数から、ホーム画面で使う3色状態を決める
   StarAppearance starAppearance(StarMode mode) {
     return progressFor(mode).appearance;
   }
 
-  /// 等価判定の対象。フィールドを追加したらここにも加える。
+  /// 等価判定の対象フィールドを追加したらここにも加える
   List<Object> get _props => [
     language,
     bgmEnabled,

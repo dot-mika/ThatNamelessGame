@@ -12,6 +12,8 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+*.jks
+*.keystore
 
 # IntelliJ related
 *.iml
@@ -44,6 +46,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+android/key.properties
 
 /lib/play/cpu_strategy.dart
 /lib/config/initial_hands.dart
@@ -52,9 +55,10 @@ app.*.map.json
 
 assets/**
 /docs/license_ui.md
-/docs/detail_design_jp.md
+/docs/detail_design_*.md
 /docs/license.md
 /docs/specifications_*.md
 /docs/initial_hands.md
 /docs/cpu.md
 /docs/images/**
+tool/**

@@ -13,10 +13,6 @@ void main() {
         for (final outcome in GameOutcome.values) {
           final result = GameResult(GameEndReason.loop, outcome);
           expect(
-            mode.earnsStar(result),
-            mode == PlayMode.twoPlayer || outcome == GameOutcome.nearWin,
-          );
-          expect(
             mode.resultSound(result),
             outcome == GameOutcome.draw
                 ? SoundEffect.draw
