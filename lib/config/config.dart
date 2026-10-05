@@ -31,6 +31,10 @@ abstract final class AppStrings {
   static String _pick(AppLanguage language, String jp, String en) =>
       language == AppLanguage.jp ? jp : en;
 
+  static String privacyPolicy(AppLanguage l) =>
+      _pick(l, 'プライバシーポリシー', 'Privacy Policy');
+  static String license(AppLanguage l) => _pick(l, 'ライセンス', 'License');
+
   // 対局画面
   static String confirm(AppLanguage l) => _pick(l, 'けってい', 'OK');
   static String exitQuestion(AppLanguage l) =>

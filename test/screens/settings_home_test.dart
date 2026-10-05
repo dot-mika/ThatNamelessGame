@@ -103,4 +103,42 @@ void main() {
       16 / 9,
     );
   });
+
+  testWidgets('legal documents open from settings and return to settings', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final repository = await SettingsRepository.create();
+    await tester.binding.setSurfaceSize(const Size(1280, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsRepositoryProvider.overrideWithValue(repository),
+          audioControllerProvider.overrideWithValue(AudioController.silent()),
+          initialSettingsProvider.overrideWithValue(
+            AppSettings.defaults(AppLanguage.en),
+          ),
+        ],
+        child: const ThatNamelessGame(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('settingsButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('privacyPolicyButton')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('privacy_policyScreen')), findsOneWidget);
+    expect(find.byKey(const Key('legalDocumentScrollView')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('legalBackButton')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('settingsScreen')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('licenseButton')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('licenseScreen')), findsOneWidget);
+  });
 }
