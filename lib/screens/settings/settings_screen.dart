@@ -6,6 +6,8 @@ import '../../config/assets.dart';
 import '../../config/config.dart';
 import '../../settings/settings_notifier.dart';
 import '../../settings/settings_state.dart';
+import '../legal/license_screen.dart';
+import '../legal/privacy_policy_screen.dart';
 import '../widgets/tappable_image.dart';
 
 /// 言語、音、2人プレイ時間を変更する設定画面
@@ -119,10 +121,73 @@ class SettingsScreen extends ConsumerWidget {
               },
             ),
           ),
+          Positioned(
+            right: 180,
+            top: 665,
+            width: 355,
+            height: 42,
+            child: _LegalLink(
+              key: const Key('privacyPolicyButton'),
+              label: AppStrings.privacyPolicy(language),
+              onTap: () => _openLegalDocument(
+                context,
+                ref,
+                const PrivacyPolicyScreen(),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 20,
+            top: 665,
+            width: 160,
+            height: 42,
+            child: _LegalLink(
+              key: const Key('licenseButton'),
+              label: AppStrings.license(language),
+              onTap: () => _openLegalDocument(
+                context,
+                ref,
+                const LicenseScreen(),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
+
+  Future<void> _openLegalDocument(
+    BuildContext context,
+    WidgetRef ref,
+    Widget screen,
+  ) async {
+    ref.playTapSound();
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => screen),
+    );
+  }
+}
+
+class _LegalLink extends StatelessWidget {
+  const _LegalLink({super.key, required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => TextButton(
+    onPressed: onTap,
+    style: TextButton.styleFrom(
+      alignment: Alignment.centerRight,
+      foregroundColor: AppColors.settingsBlack,
+      padding: EdgeInsets.zero,
+      textStyle: const TextStyle(
+        fontSize: 25,
+        decoration: TextDecoration.underline,
+      ),
+    ),
+    child: Text(label, textAlign: TextAlign.right),
+  );
 }
 
 class _Label extends StatelessWidget {

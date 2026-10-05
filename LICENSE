@@ -1,22 +1,36 @@
-## License
-
-Copyright © 2026 .mika and contributors
+Copyright © 2026 .mika
 All Rights Reserved.
 
-This repository is made publicly available solely for portfolio and
-evaluation purposes.
+This project and its repository are made publicly available solely for
+portfolio, demonstration, and evaluation purposes.
 
-The contents of this repository include, but are not limited to,
-source code, documentation, specifications, and all UI/visual design
-elements (including layouts, color schemes, illustrations, and image
-assets shown in the documentation).
+This license applies to the original contents of this project, including,
+but not limited to, source code, compiled application binaries,
+documentation, specifications, and original UI/visual design elements
+(including layouts, color schemes, illustrations, and image assets).
 
 Without prior written permission from the copyright holder, you may not:
 
 - copy or reproduce the contents;
-- modify or create derivative works;
-- redistribute the contents;
+- modify, adapt, or create derivative works;
+- redistribute, sublicense, sell, rent, or otherwise provide the contents
+  to third parties;
 - use the contents commercially;
-- incorporate the contents into another application or service; or
-- extract, reuse, or imitate the UI/visual design elements in any
-  other application, service, or design work.
+- incorporate the contents into another application, service, product,
+  or project;
+- extract, reuse, or imitate the UI/visual design elements in another
+  application, service, product, or design work;
+- reverse engineer, decompile, disassemble, or otherwise attempt to derive
+  the source code or internal implementation of distributed application
+  binaries, except to the extent such restriction is prohibited by
+  applicable law; or
+- circumvent or attempt to circumvent technical measures intended to
+  protect the application or its contents.
+
+No license or other rights are granted except as expressly stated in this
+document.
+
+Third-party software, fonts, audio, images, and other materials included
+in or referenced by this project remain subject to their respective
+copyrights and license terms. Nothing in this license grants rights to
+those third-party materials.
