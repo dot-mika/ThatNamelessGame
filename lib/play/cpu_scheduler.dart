@@ -1,5 +1,5 @@
-/// CPUの選択演出を一定間隔で進めるための小さなスケジューラ。
-/// 実際の時計・一時停止・破棄はPlaySessionNotifierが管理する。
+/// CPUの選択演出を一定間隔で進めるための小さなスケジューラ
+/// 実際の時計・一時停止・破棄はPlaySessionNotifierが管理する
 class CpuScheduler {
   CpuScheduler({
     this.interval = const Duration(milliseconds: 750),
@@ -10,9 +10,16 @@ class CpuScheduler {
   Duration elapsed = Duration.zero;
   int step = 0;
 
-  /// 進められる操作があれば1つだけ進める。
-  /// 遅延フレームでも複数操作を一気に進めないため、CPUの
-  /// 「手選択 → 対象選択 → 決定」の表示間隔が潰れない。
+  /// 次の演出操作までの待ち時間
+  Duration get untilNext {
+    if (step >= operations) return Duration.zero;
+    final remaining = interval * (step + 1) - elapsed;
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+
+  /// 経過時間を進め、次の演出操作を実行すべきか返す
+  /// 遅延フレームでも操作は1回に1つしか進めないため、CPUの
+  /// 「手選択 → 対象選択 → 決定」の表示間隔が潰れない
   bool advance(Duration delta) {
     elapsed += delta.isNegative ? Duration.zero : delta;
     final due = interval * (step + 1);

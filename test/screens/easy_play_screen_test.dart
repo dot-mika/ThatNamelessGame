@@ -8,20 +8,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:that_nameless_game/audio/audio_controller.dart';
+import 'package:that_nameless_game/config/assets.dart';
 import 'package:that_nameless_game/config/config.dart';
 import 'package:that_nameless_game/game/game_engine.dart';
-import 'package:that_nameless_game/main.dart';
 import 'package:that_nameless_game/initialization/image_preloader.dart';
-import 'package:that_nameless_game/play/play_session.dart';
+import 'package:that_nameless_game/main.dart';
 import 'package:that_nameless_game/play/cpu_strategy.dart';
-import 'package:that_nameless_game/settings/save_settings.dart';
+import 'package:that_nameless_game/play/play_mode.dart';
+import 'package:that_nameless_game/play/play_session.dart';
+import 'package:that_nameless_game/settings/settings_notifier.dart';
+import 'package:that_nameless_game/settings/settings_repository.dart';
 import 'package:that_nameless_game/settings/settings_state.dart';
-import 'package:that_nameless_game/settings/update_settings.dart';
 
 import '../play/play_session_test.dart' show FakeClock;
-
-import 'package:that_nameless_game/play/play_mode.dart';
-import 'package:that_nameless_game/config/assets.dart';
 
 void main() {
   for (final mode in [PlayMode.easy, PlayMode.normal, PlayMode.hard]) {
@@ -85,8 +84,8 @@ void main() {
           expect(container.read(playSessionProvider).mode, mode);
           expect(find.byKey(const Key('countdown-true-3')), findsOneWidget);
           expect(find.byKey(const Key('countdown-false-3')), findsNothing);
-          clock.advance(4000);
-          await tester.pump(const Duration(seconds: 4));
+          clock.advance(PlayTiming.countdown.inMilliseconds);
+          await tester.pump(PlayTiming.countdown);
           await tester.pumpAndSettle();
           expect(find.byKey(const Key('confirmMove')), findsNothing);
           if (mode != PlayMode.easy) {
@@ -127,12 +126,11 @@ void main() {
               image.dispose();
             });
           }
-          // A cosmetic reselection adds one visible CPU operation per retry.
-          for (var i = 0;
-              i < 3 + cpuSettingsFor(mode).maxReselections;
-              i++) {
-            clock.advance(10000);
-            await tester.pump(const Duration(milliseconds: 16));
+          // CPU の予約タイマーと FakeClock を同じ間隔で進める。
+          for (var i = 0; i < 3 + cpuSettingsFor(mode).maxReselections; i++) {
+            final step = cpuSettingsFor(mode).stepInterval;
+            clock.advance(step.inMilliseconds);
+            await tester.pump(step);
           }
           clock.advance(800);
           await tester.pump(const Duration(milliseconds: 800));
@@ -151,20 +149,11 @@ void main() {
           initialTurn = PlayerSide.near;
           await tester.tap(find.bySemanticsLabel(label));
           await tester.pumpAndSettle();
-          clock.advance(4000);
-          await tester.pump(const Duration(seconds: 4));
+          clock.advance(PlayTiming.countdown.inMilliseconds);
+          await tester.pump(PlayTiming.countdown);
           await tester.pumpAndSettle();
-          final theme = mode.playerColor
-              .toARGB32()
-              .toRadixString(16)
-              .substring(2)
-              .toUpperCase();
           expect(
-            find.image(
-              Assets.image(
-                Assets.playBackground(true, easy: true, soloColor: theme),
-              ),
-            ),
+            find.image(Assets.image(Assets.playBackground(mode.playerColor))),
             findsOneWidget,
           );
           if (Platform.environment['PLAY_SCREENSHOTS'] == '1') {

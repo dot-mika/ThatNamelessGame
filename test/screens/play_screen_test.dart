@@ -10,12 +10,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:that_nameless_game/audio/audio_controller.dart';
 import 'package:that_nameless_game/config/config.dart';
 import 'package:that_nameless_game/game/game_engine.dart';
-import 'package:that_nameless_game/main.dart';
 import 'package:that_nameless_game/initialization/image_preloader.dart';
+import 'package:that_nameless_game/main.dart';
 import 'package:that_nameless_game/play/play_session.dart';
-import 'package:that_nameless_game/settings/save_settings.dart';
+import 'package:that_nameless_game/settings/settings_notifier.dart';
+import 'package:that_nameless_game/settings/settings_repository.dart';
 import 'package:that_nameless_game/settings/settings_state.dart';
-import 'package:that_nameless_game/settings/update_settings.dart';
 
 import '../play/play_session_test.dart' show FakeClock;
 
@@ -127,7 +127,7 @@ void main() {
         );
         expect(find.byKey(const Key('countdown-true-3')), findsOneWidget);
         await capture('countdown');
-        clock.advance(999);
+        clock.advance(PlayTiming.countdownStep.inMilliseconds - 1);
         await tester.pump(const Duration(milliseconds: 999));
         expect(find.byKey(const Key('countdown-true-3')), findsOneWidget);
         clock.advance(1);
@@ -135,8 +135,8 @@ void main() {
         await tester.pump(const Duration(milliseconds: 16));
         expect(container.read(playSessionProvider).countdown, 2);
         for (var i = 0; i < 3; i++) {
-          clock.advance(1000);
-          await tester.pump(const Duration(seconds: 1));
+          clock.advance(PlayTiming.countdownStep.inMilliseconds);
+          await tester.pump(PlayTiming.countdownStep);
         }
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const Key('hand-near-left')));
@@ -188,8 +188,8 @@ void main() {
           (await SharedPreferences.getInstance()).getBool('starTwoPlayer'),
           isTrue,
         );
-        clock.advance(4000);
-        await tester.pump(const Duration(seconds: 4));
+        clock.advance(PlayTiming.countdown.inMilliseconds);
+        await tester.pump(PlayTiming.countdown);
         await tester.pumpAndSettle();
         await tester.binding.handlePopRoute();
         await tester.pump();
@@ -199,8 +199,8 @@ void main() {
         await tester.tap(find.bySemanticsLabel(AppStrings.playTwo(language)));
         await tester.pumpAndSettle();
         expect(find.byKey(const Key('countdown-true-3')), findsOneWidget);
-        clock.advance(4000);
-        await tester.pump(const Duration(seconds: 4));
+        clock.advance(PlayTiming.countdown.inMilliseconds);
+        await tester.pump(PlayTiming.countdown);
         clock.advance(5000);
         await tester.pump(const Duration(seconds: 5));
         await tester.pumpAndSettle();

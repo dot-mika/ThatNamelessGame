@@ -1,21 +1,17 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../settings/update_settings.dart';
-import '../../config/config.dart';
-import '../../settings/settings_state.dart';
-import '../../config/assets.dart';
 import '../../audio/audio_controller.dart';
+import '../../config/assets.dart';
+import '../../config/config.dart';
+import '../../settings/settings_notifier.dart';
+import '../../settings/settings_state.dart';
 import '../widgets/tappable_image.dart';
 
-/// 言語、音、2人プレイ時間を変更する設定画面。
+/// 言語、音、2人プレイ時間を変更する設定画面
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  void _tapSound(WidgetRef ref) =>
-      unawaited(ref.read(audioControllerProvider).play(SoundEffect.tapButton));
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,7 +49,7 @@ class SettingsScreen extends ConsumerWidget {
               language: language,
               selected: settings.timeLimit,
               onSelected: (value) {
-                _tapSound(ref);
+                ref.playTapSound();
                 notifier.setTimeLimit(value);
               },
             ),
@@ -70,7 +66,7 @@ class SettingsScreen extends ConsumerWidget {
               key: const Key('seSelector'),
               value: settings.seEnabled,
               onChanged: (value) {
-                _tapSound(ref);
+                ref.playTapSound();
                 notifier.setSeEnabled(value);
               },
             ),
@@ -87,7 +83,7 @@ class SettingsScreen extends ConsumerWidget {
               key: const Key('bgmSelector'),
               value: settings.bgmEnabled,
               onChanged: (value) {
-                _tapSound(ref);
+                ref.playTapSound();
                 notifier.setBgmEnabled(value);
               },
             ),
@@ -103,7 +99,7 @@ class SettingsScreen extends ConsumerWidget {
             child: _LanguageSelector(
               language: language,
               onChanged: (value) {
-                _tapSound(ref);
+                ref.playTapSound();
                 notifier.setLanguage(value);
               },
             ),
@@ -118,7 +114,7 @@ class SettingsScreen extends ConsumerWidget {
               asset: Assets.settingsHome,
               semanticLabel: AppStrings.home(language),
               onTap: () {
-                _tapSound(ref);
+                ref.playTapSound();
                 Navigator.of(context).pop();
               },
             ),
@@ -146,7 +142,7 @@ class _Label extends StatelessWidget {
   );
 }
 
-/// 2人プレイの制限時間候補を横並びで選ぶ部品。
+/// 2人プレイの制限時間候補を横並びで選ぶ部品
 class _TimeLimitSelector extends StatelessWidget {
   const _TimeLimitSelector({
     required this.language,
@@ -193,7 +189,7 @@ class _TimeLimitSelector extends StatelessWidget {
   );
 }
 
-/// ON/OFFの2択を共通の見た目で表示する部品。
+/// ON/OFFの2択を共通の見た目で表示する部品
 class _OnOffSelector extends StatelessWidget {
   const _OnOffSelector({
     super.key,
@@ -235,7 +231,7 @@ class _OnOffSelector extends StatelessWidget {
   );
 }
 
-/// 日本語と英語を切り替える部品。
+/// 日本語と英語を切り替える部品
 class _LanguageSelector extends StatelessWidget {
   const _LanguageSelector({required this.language, required this.onChanged});
   final AppLanguage language;
@@ -272,7 +268,7 @@ class _LanguageSelector extends StatelessWidget {
   );
 }
 
-/// 各セレクタ内部で使う、選択状態を持つ1つの選択肢。
+/// 各セレクタ内部で使う、選択状態を持つ1つの選択肢
 class _Choice extends StatelessWidget {
   const _Choice({
     required this.selected,

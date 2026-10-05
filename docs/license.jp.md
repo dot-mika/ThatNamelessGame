@@ -1,7 +1,7 @@
 # 各種ライセンス
 
 ## UIデザイン
-.mikaを含めた2名により制作。本名など個人情報を含むため `license_ui.md` に明記の上githubには不掲載とする。
+.mikaを含めた2名により制作本名など個人情報を含むため `license_ui.md` に明記の上githubには不掲載とする
 
 ## フォント「[お手製Rwiフォント](https://booth.pm/ja/items/4114624)」
 - ライセンス(https://booth.pm/ja/items/4114624) 

@@ -1,17 +1,19 @@
 import 'dart:async';
 import 'dart:math';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:that_nameless_game/play/cpu_strategy.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:that_nameless_game/audio/audio_controller.dart';
 import 'package:that_nameless_game/config/config.dart';
 import 'package:that_nameless_game/game/game_engine.dart';
-import 'package:that_nameless_game/play/play_session.dart';
+import 'package:that_nameless_game/play/cpu_strategy.dart';
 import 'package:that_nameless_game/play/play_mode.dart';
-import 'package:that_nameless_game/settings/save_settings.dart';
+import 'package:that_nameless_game/play/play_session.dart';
+import 'package:that_nameless_game/settings/settings_notifier.dart';
+import 'package:that_nameless_game/settings/settings_repository.dart';
 import 'package:that_nameless_game/settings/settings_state.dart';
-import 'package:that_nameless_game/settings/update_settings.dart';
+
 import '../audio/fake_audio_player.dart';
 
 class FakeClock implements Clock {
@@ -108,7 +110,7 @@ void main() {
             ),
           ),
         );
-        advance(4000);
+        advance(PlayTiming.countdown.inMilliseconds);
         controller.requestExit();
         cpu.result.complete(
           const GameMove(HandPosition.left, HandPosition.left),
@@ -148,7 +150,7 @@ void main() {
         ),
       ),
     );
-    advance(4000);
+    advance(PlayTiming.countdown.inMilliseconds);
     container.invalidate(playSessionProvider);
     cpu.result.complete(const GameMove(HandPosition.left, HandPosition.left));
     await Future<void>.delayed(Duration.zero);
@@ -170,7 +172,7 @@ void main() {
             ),
           ),
         );
-        advance(4000);
+        advance(PlayTiming.countdown.inMilliseconds);
         select();
         controller.confirm();
         advance(600);
@@ -196,7 +198,7 @@ void main() {
         controller.requestExit();
         expect(state().phase, PlayPhase.countdown);
         expect(state().attacker, isNull);
-        advance(1000);
+        advance(PlayTiming.countdownStep.inMilliseconds);
       }
       expect(state().phase, PlayPhase.selecting);
       expect(state().remaining, const Duration(seconds: 5));
@@ -213,7 +215,7 @@ void main() {
       controller.startCountdown(id - 1);
       expect(state().countdownStarted, isFalse);
       controller.startCountdown(id);
-      advance(999);
+      advance(PlayTiming.countdownStep.inMilliseconds - 1);
       expect(state().countdown, 3);
       controller.startCountdown(
         id,
@@ -255,7 +257,7 @@ void main() {
       await audio.setForeground(true); // Drain queued audio commands.
       expect(events, ['bgm pause', 'countdown']);
       for (var second = 1; second <= 4; second++) {
-        advance(1000);
+        advance(PlayTiming.countdownStep.inMilliseconds);
         await audio.setForeground(true);
       }
       expect(events, [
@@ -271,7 +273,7 @@ void main() {
   );
   test('deadline wins over confirm even before a timer callback', () async {
     await setup();
-    advance(4000);
+    advance(PlayTiming.countdown.inMilliseconds);
     select();
     clock.advance(5000);
     controller.confirm();
@@ -285,11 +287,29 @@ void main() {
       isTrue,
     );
   });
+  test('remaining time publishes only when the displayed second changes', () async {
+    await setup();
+    advance(PlayTiming.countdown.inMilliseconds);
+    var updates = 0;
+    final subscription = container.listen<PlayState>(
+      playSessionProvider,
+      (_, _) => updates++,
+    );
+    addTearDown(subscription.close);
+
+    advance(500);
+    expect(state().remaining, const Duration(seconds: 5));
+    expect(updates, 0);
+
+    advance(500);
+    expect(state().remaining, const Duration(seconds: 4));
+    expect(updates, 1);
+  });
   test(
     'attack hits once at 600ms, completes at 800ms, then resets timer',
     () async {
       await setup();
-      advance(4000);
+      advance(PlayTiming.countdown.inMilliseconds);
       select();
       controller.confirm();
       controller.confirm();
@@ -309,7 +329,7 @@ void main() {
     'two-player exit pauses the timer including background time and gives no star',
     () async {
       await setup();
-      advance(4000);
+      advance(PlayTiming.countdown.inMilliseconds);
       advance(1000);
       controller.requestExit();
       controller.setForeground(false);
@@ -335,7 +355,7 @@ void main() {
   );
   test('solo human exit still includes elapsed time', () async {
     await setup(mode: PlayMode.easy);
-    advance(4000);
+    advance(PlayTiming.countdown.inMilliseconds);
     controller.requestExit();
     advance(30000);
     controller.cancelExit();
@@ -358,7 +378,8 @@ void main() {
       controller.setForeground(false);
       advance(20000);
       controller.setForeground(true);
-      expect(state().attackProgress, .5);
+      expect(state().phase, PlayPhase.attacking);
+      expect(state().session.position.turn, PlayerSide.near);
       advance(400);
       expect(state().session.position.turn, PlayerSide.far);
       controller.setForeground(false);
@@ -371,14 +392,15 @@ void main() {
     'exit during attack resumes remaining motion without consuming turn time',
     () async {
       await setup();
-      advance(4000);
+      advance(PlayTiming.countdown.inMilliseconds);
       select();
       controller.confirm();
       advance(300);
       controller.requestExit();
       advance(20000);
       controller.cancelExit();
-      expect(state().attackProgress, .375);
+      expect(state().phase, PlayPhase.attacking);
+      expect(state().session.position.turn, PlayerSide.near);
       advance(500);
       expect(state().phase, PlayPhase.selecting);
       expect(state().remaining, const Duration(seconds: 5));
@@ -386,7 +408,7 @@ void main() {
   );
   test('unlimited has no deadline, selections can change', () async {
     await setup(limit: TimeLimit.unlimited);
-    advance(4000);
+    advance(PlayTiming.countdown.inMilliseconds);
     advance(999999);
     select();
     controller.select(PlayerSide.near, HandPosition.right);
@@ -406,7 +428,7 @@ void main() {
           ),
         ),
       );
-      advance(4000);
+      advance(PlayTiming.countdown.inMilliseconds);
       select();
       controller.confirm();
       advance(600);
@@ -437,7 +459,7 @@ void main() {
           ),
         ),
       );
-      advance(4000);
+      advance(PlayTiming.countdown.inMilliseconds);
       select();
       controller.confirm();
       expect(state().attacker, isNull);
@@ -488,7 +510,7 @@ void main() {
             ),
           ),
         );
-        advance(4000);
+        advance(PlayTiming.countdown.inMilliseconds);
         select();
         controller.confirm();
         advance(800);

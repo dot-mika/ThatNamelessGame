@@ -6,6 +6,11 @@ A Flutter game for two players or solo play against a CPU. Each player has three
 
 This repository is publicly available as a portfolio and technical-evaluation project. The design, images, audio, and source code are not licensed for reuse; see [LICENSE](LICENSE).
 
+## Documentation
+
+- Specifications: [Japanese](docs/specifications_ver2_jp.md) / [English](docs/specifications_ver2_en.md)
+- Detailed design: [Japanese](docs/detail_design_jp.md) / [English](docs/detail_design_en.md)
+
 ## Screenshots
 
 | Home — mode selection and achievement stars | Gameplay |

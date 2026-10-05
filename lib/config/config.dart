@@ -1,10 +1,8 @@
 import 'dart:ui';
 
-import '../settings/settings_state.dart';
-import 'assets.dart';
+import 'app_language.dart';
 
-/// アプリ共通の色。配色の変更はここで行う。
-/// Figmaと対応するアプリ共通色。
+/// アプリ共通の色配色の変更はここで行う
 abstract final class AppColors {
   static const easyPlayer = Color(0xFFF2D087);
   static const normalPlayer = Color(0xFF8BCD7D);
@@ -13,12 +11,13 @@ abstract final class AppColors {
   static const farPlayer = Color(0xFFC297C8);
   static const disabled = Color(0xFFCCCCCC);
   static const settingsBlack = Color(0xFF7F7F7F);
+  static const dialogGray = Color(0xFF666666);
+  static const cpuTurnOverlay = Color(0x66000000);
   static const white = Color(0xFFFFFFFF);
 }
 
-/// 画面サイズや音量など、アプリ全体で共有する数値設定。
-class AppConfig {
-  AppConfig._();
+/// 画面サイズや音量など、アプリ全体で共有する数値設定
+abstract final class AppConfig {
 
   static const canvasWidth = 1280.0;
   static const canvasHeight = 720.0;
@@ -26,64 +25,57 @@ class AppConfig {
   static const tapCooldown = Duration(milliseconds: 500);
 }
 
-/// 言語に応じて画面文言を返す簡易ローカライズ窓口。
-class AppStrings {
-  AppStrings._();
-  static String confirm(AppLanguage language) =>
-      language == AppLanguage.jp ? 'けってい' : 'OK';
-  static String exitQuestion(AppLanguage language) => language == AppLanguage.jp
-      ? '本当にゲームを終わりますか？'
-      : 'Are you sure you want to quit the game?';
-  static String yes(AppLanguage language) =>
-      language == AppLanguage.jp ? 'はい' : 'Yes';
-  static String no(AppLanguage language) =>
-      language == AppLanguage.jp ? 'いいえ' : 'No';
-  static String playAgain(AppLanguage language) =>
-      language == AppLanguage.jp ? 'もう一度プレイ' : 'Play again';
+/// 言語に応じて画面文言を返す簡易ローカライズ窓口
+abstract final class AppStrings {
+  /// 日本語と英語の文言から、指定言語の方を返す
+  static String _pick(AppLanguage language, String jp, String en) =>
+      language == AppLanguage.jp ? jp : en;
 
-  static String settingsTitle(AppLanguage language) =>
-      language == AppLanguage.jp ? '設定' : 'Settings';
-  static String timeLimit(AppLanguage language) => language == AppLanguage.jp
-      ? '☆ 2人プレイの時間制限'
-      : '☆ Time limit for 2 player mode';
-  static String soundEffects(AppLanguage language) =>
-      language == AppLanguage.jp ? '☆ 効果音のON/OFF' : '☆ Sound Effects ON/OFF';
-  static String bgm(AppLanguage language) =>
-      language == AppLanguage.jp ? '☆ BGMのON/OFF' : '☆ BGM ON/OFF';
-  static String language(AppLanguage language) =>
-      language == AppLanguage.jp ? '☆ 言語' : '☆ Language';
-  static String unlimited(AppLanguage language) =>
-      language == AppLanguage.jp ? '無制限' : 'Unlimited';
-  static String home(AppLanguage language) =>
-      language == AppLanguage.jp ? 'ホーム' : 'Home';
-  static String rules(AppLanguage language) =>
-      language == AppLanguage.jp ? 'ルール' : 'Rules';
-  static String playTwo(AppLanguage language) =>
-      language == AppLanguage.jp ? '2人対戦' : '2 players';
-  static String playEasy(AppLanguage language) =>
-      language == AppLanguage.jp ? 'かんたん' : 'Easy';
-  static String playNormal(AppLanguage language) =>
-      language == AppLanguage.jp ? 'ふつう' : 'Normal';
-  static String playHard(AppLanguage language) =>
-      language == AppLanguage.jp ? 'むずかしい' : 'Hard';
-  static String retry(AppLanguage language) =>
-      language == AppLanguage.jp ? '再試行' : 'Retry';
-  static String previousPage(AppLanguage language) =>
-      language == AppLanguage.jp ? '前のページ' : 'Previous page';
-  static String nextPage(AppLanguage language) =>
-      language == AppLanguage.jp ? '次のページ' : 'Next page';
+  // 対局画面
+  static String confirm(AppLanguage l) => _pick(l, 'けってい', 'OK');
+  static String exitQuestion(AppLanguage l) =>
+      _pick(l, '本当にゲームを終わりますか？', 'Are you sure you want to quit the game?');
+  static String exitQuestionDisplay(AppLanguage l) =>
+      _pick(l, '本当にゲームを\n終わりますか？', 'Are you sure you want\nto quit the game?');
+  static String yes(AppLanguage l) => _pick(l, 'はい', 'Yes');
+  static String no(AppLanguage l) => _pick(l, 'いいえ', 'No');
+  static String playAgain(AppLanguage l) => _pick(l, 'もう一度プレイ', 'Play again');
+  static String nearSide(AppLanguage l) => _pick(l, '手前', 'Near');
+  static String farSide(AppLanguage l) => _pick(l, '奥', 'Far');
+
+  // 設定画面
+  static String settingsTitle(AppLanguage l) => _pick(l, '設定', 'Settings');
+  static String timeLimit(AppLanguage l) =>
+      _pick(l, '☆ 2人プレイの時間制限', '☆ Time limit for 2 player mode');
+  static String soundEffects(AppLanguage l) =>
+      _pick(l, '☆ 効果音のON/OFF', '☆ Sound Effects ON/OFF');
+  static String bgm(AppLanguage l) => _pick(l, '☆ BGMのON/OFF', '☆ BGM ON/OFF');
+  static String language(AppLanguage l) => _pick(l, '☆ 言語', '☆ Language');
+  static String unlimited(AppLanguage l) => _pick(l, '無制限', 'Unlimited');
+
+  // ホーム・ルール・起動画面
+  static String home(AppLanguage l) => _pick(l, 'ホーム', 'Home');
+  static String rules(AppLanguage l) => _pick(l, 'ルール', 'Rules');
+  static String playTwo(AppLanguage l) => _pick(l, '2人対戦', '2 players');
+  static String playEasy(AppLanguage l) => _pick(l, 'かんたん', 'Easy');
+  static String playNormal(AppLanguage l) => _pick(l, 'ふつう', 'Normal');
+  static String playHard(AppLanguage l) => _pick(l, 'むずかしい', 'Hard');
+  static String retry(AppLanguage l) => _pick(l, '再試行', 'Retry');
+  static String restartApp(AppLanguage l) =>
+      _pick(l, '問題が発生しました\nアプリを再起動してください', 'Something went wrong.\nPlease restart the app.');
+  static String previousPage(AppLanguage l) =>
+      _pick(l, '前のページ', 'Previous page');
+  static String nextPage(AppLanguage l) => _pick(l, '次のページ', 'Next page');
 }
 
+/// 効果音の種類
 enum SoundEffect {
-  tapButton(Assets.seTapButton),
-  tapHand(Assets.seTapHand),
-  win(Assets.seWin),
-  tapOk(Assets.seTapOk),
-  countdown(Assets.seCountdown),
-  start(Assets.seStart),
-  draw(Assets.seDraw),
-  lose(Assets.seLose);
-
-  const SoundEffect(this.asset);
-  final String asset;
+  tapButton,
+  tapHand,
+  win,
+  tapOk,
+  countdown,
+  start,
+  draw,
+  lose;
 }

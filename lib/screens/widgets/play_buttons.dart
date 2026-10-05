@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../config/config.dart';
 
-/// Shared by every play mode. Layout and game actions belong to the caller.
-/// プレイ画面左上のホームへ戻る丸ボタン。
+/// プレイ画面左上のホームへ戻る丸ボタン
+/// 配置と対局操作は呼び出し側が担当する
 class PlayHomeButton extends StatelessWidget {
   const PlayHomeButton({
     super.key,
@@ -45,8 +45,8 @@ class PlayHomeButton extends StatelessWidget {
   );
 }
 
-/// A null callback disables confirmation and applies the shared disabled color.
-/// 攻撃手と対象手が選ばれた後に使う決定ボタン。
+/// 攻撃手と対象手が選ばれた後に使う決定ボタン
+/// コールバックがnullなら無効表示になる
 class PlayConfirmButton extends StatelessWidget {
   const PlayConfirmButton({
     super.key,

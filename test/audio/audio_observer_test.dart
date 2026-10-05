@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:that_nameless_game/audio/audio_observer.dart';
 import 'package:that_nameless_game/audio/audio_controller.dart';
+import 'package:that_nameless_game/audio/audio_observer.dart';
 import 'package:that_nameless_game/settings/settings_state.dart';
 
 import 'fake_audio_player.dart';

@@ -5,13 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../audio/audio_controller.dart';
 import '../config/config.dart';
+import '../diagnostics/app_error_handler.dart';
 import '../game/game_engine.dart';
-import '../settings/update_settings.dart';
-import 'play_mode.dart';
-import 'cpu_strategy.dart';
+import '../settings/settings_notifier.dart';
 import 'cpu_scheduler.dart';
+import 'cpu_strategy.dart';
+import 'play_mode.dart';
 
-/// 実時間の取得を抽象化する。テストではFakeClockへ差し替える。
+/// 実時間の取得を抽象化するテストではFakeClockへ差し替える
 abstract interface class Clock {
   DateTime now();
 }
@@ -21,35 +22,92 @@ class SystemClock implements Clock {
   DateTime now() => DateTime.now();
 }
 
+/// 対局演出の時間進行判定と表示計算で同じ値を使う
+abstract final class PlayTiming {
+  /// カウントダウンの最初の数字
+  static const countdownFrom = 3;
+
+  /// 「3・2・1・スタート」それぞれの表示とSE開始の間隔
+  static const countdownStep = Duration(seconds: 1);
+
+  /// 「3・2・1・スタート」を同じ間隔ずつ表示する合計時間
+  static final countdown = countdownStep * (countdownFrom + 1);
+
+  /// 攻撃手が相手の手に届き、値が変わる時点
+  static const attackHit = Duration(milliseconds: 600);
+
+  /// 攻撃手が元の位置へ戻り終わるまでの時間
+  static const attack = Duration(milliseconds: 800);
+
+  /// 進行を確認する間隔経過時間は実時計で測る
+}
+
+/// 対局画面が描画・操作判断に使う進行フェーズ
+enum PlayPhase { countdown, selecting, attacking, confirmingExit, finished }
+
+/// 対局進行をUIへ渡す不変のスナップショット
+class PlayState {
+  const PlayState({
+    required this.mode,
+    required this.session,
+    required this.phase,
+    required this.remaining,
+    required this.countdown,
+    required this.countdownStarted,
+    required this.attacking,
+    required this.attackPaused,
+    required this.operationId,
+    this.attacker,
+    this.target,
+    this.result,
+  });
+
+  final GameSession session;
+  final PlayMode mode;
+  final PlayPhase phase;
+  final Duration? remaining;
+  final int countdown;
+  final bool countdownStarted;
+
+  /// 攻撃アニメーション中か終了確認で一時停止している間もtrue
+  final bool attacking;
+  final bool attackPaused;
+  final int operationId;
+  final HandPosition? attacker;
+  final HandPosition? target;
+  final GameResult? result;
+
+  /// 攻撃側と対象側の手が両方選ばれているか判定する
+  bool get canConfirm => canSelect && attacker != null && target != null;
+
+  /// 現在の手番を人間が選択操作できるか判定する
+  bool get canSelect =>
+      phase == PlayPhase.selecting && mode.isHuman(session.position.turn);
+}
+
 /// 対局に必要な依存をProviderとして切り出し、画面ごとのモードと
-/// テスト用の偽物を安全に差し替えられるようにする。
+/// テスト用の偽物を安全に差し替えられるようにする
 final playClockProvider = Provider<Clock>((ref) => SystemClock());
 final playModeProvider = Provider<PlayMode>(
   (ref) => PlayMode.twoPlayer,
   dependencies: [],
 );
 final cpuRandomProvider = Provider<Random>((ref) => Random());
-final cpuStrategyProvider = Provider<CpuStrategy>((ref) {
-  final mode = ref.watch(playModeProvider);
-  if (mode.isTwoPlayer) throw StateError('Two-player mode has no CPU strategy.');
-  final cpu = cpuSettingsFor(mode);
-  return cpu.searchDepth == 0
-      ? EasyCpu(eliminationChance: cpu.eliminationChance)
-      : mode == PlayMode.hard
-      ? HardCpu(depth: cpu.searchDepth)
-      : SearchCpu(cpu.searchDepth);
-}, dependencies: [playModeProvider]);
+final cpuStrategyProvider = Provider<CpuStrategy>(
+  (ref) => cpuStrategyFor(ref.watch(playModeProvider)),
+  dependencies: [playModeProvider],
+);
 
-/// モードに応じた初期局面の作り方。ふつう・むずかしいだけ28局面プールを使う。
+/// モードに応じた初期局面の作り方ふつう・むずかしいだけ28局面プールを使う
 final initialGameProvider = Provider<GameSession Function()>((ref) {
   final mode = ref.watch(playModeProvider);
-  final random = Random();
+  final random = ref.watch(cpuRandomProvider);
   return switch (mode) {
     PlayMode.normal ||
     PlayMode.hard => SoloInitialPositionGenerator(random).generate,
     _ => InitialPositionGenerator(random).generate,
   };
-}, dependencies: [playModeProvider]);
+}, dependencies: [playModeProvider, cpuRandomProvider]);
 final playSessionProvider =
     NotifierProvider.autoDispose<PlaySessionNotifier, PlayState>(
       PlaySessionNotifier.new,
@@ -64,62 +122,42 @@ final playSessionProvider =
       ],
     );
 
-/// 対局画面が現在どの操作を受け付ける段階かを表す。
-enum PlayPhase { countdown, selecting, attacking, confirmingExit, finished }
-
-/// PlayScreenが描画に必要な値だけをまとめた読み取り専用の状態。
-class PlayState {
-  const PlayState({
-    required this.mode,
-    required this.session,
-    required this.phase,
-    required this.remaining,
-    required this.countdown,
-    required this.countdownStarted,
-    required this.attackProgress,
-    required this.operationId,
-    this.attacker,
-    this.target,
-    this.result,
-  });
-  final GameSession session;
-  final PlayMode mode;
-  final PlayPhase phase;
-  final Duration? remaining;
-  final int countdown, operationId;
-  final bool countdownStarted;
-  final double attackProgress;
-  final HandPosition? attacker, target;
-  final GameResult? result;
-  bool get canConfirm => canSelect && attacker != null && target != null;
-  bool get canSelect =>
-      phase == PlayPhase.selecting && mode.isHuman(session.position.turn);
-}
-
-/// カウントダウンから結果画面まで、対局の時間軸を管理する司令塔。
+/// カウントダウンから結果画面まで、対局の時間軸を管理する司令塔
 class PlaySessionNotifier extends Notifier<PlayState> {
   final _engine = const GameEngine();
+  final _audioSuspensionOwner = Object();
   late Clock _clock;
   late AudioController _audio;
   late PlayMode _mode;
   late GameSession _session;
   late DateTime _lastTick;
-  Duration? _limit, _remaining;
-  DateTime? _deadline;
+  final _timer = _MatchTimer();
   PlayPhase _phase = PlayPhase.countdown;
-  PlayPhase? _suspendedPhase;
   HandPosition? _attacker, _target;
-  GameSession? _pending;
   GameResult? _result;
+
+  /// カウントダウンと攻撃アニメーションの経過時間
   Duration _motion = Duration.zero;
-  bool _foreground = true, _hit = false, _resultCommitted = false;
+  bool _foreground = true, _resultCommitted = false;
   bool _countdownStarted = false;
+  bool _exitConfirming = false;
   int _operationId = 0;
-  CpuScheduler? _cpuSchedule;
-  GameMove? _cpuMove;
+
+  /// 攻撃アニメーション中の適用後局面攻撃中以外はnull
+  _Attack? _attack;
+
+  /// CPUの手が決まった後の演出予定決まるまではnull
+  _CpuPlan? _cpuPlan;
   int _cpuRequest = 0;
-  List<GameMove> _cpuPreviews = [];
+  Timer? _scheduledTick;
   bool get _cpuTurn => !_mode.isHuman(_session.position.turn);
+  bool get _isHalted =>
+      !_foreground ||
+      (_phase == PlayPhase.countdown && !_countdownStarted) ||
+      _exitConfirming ||
+      _phase == PlayPhase.finished;
+
+  void _resetTickClock() => _lastTick = _clock.now();
 
   @override
   PlayState build() {
@@ -127,46 +165,41 @@ class PlaySessionNotifier extends Notifier<PlayState> {
     _audio = ref.read(audioControllerProvider);
     _mode = ref.read(playModeProvider);
     _reset();
-    // tick自体は実経過時間を使う。Timerは進行を確認する契機にすぎない。
-    final timer = Timer.periodic(
-      const Duration(milliseconds: 16),
-      (_) => tick(),
-    );
+    // tick自体は実経過時間を使うTimerは進行を確認する契機にすぎない
     ref.onDispose(() {
-      timer.cancel();
+      _scheduledTick?.cancel();
       _operationId++;
       _cpuRequest++;
-      unawaited(_audio.setPlaySuspended(false));
+      unawaited(_audio.setPlaySuspended(_audioSuspensionOwner, false));
     });
     return _snapshot();
   }
 
   void _reset() {
-    // 古い非同期CPU計算と画面コールバックを、新しい対局へ反映させない。
+    _scheduledTick?.cancel();
+    // 古い非同期CPU計算と画面コールバックを、新しい対局へ反映させない
     _cpuRequest++;
     _operationId++;
     _session = ref.read(initialGameProvider)();
-    _limit = _mode.isTwoPlayer
-        ? ref.read(appSettingsProvider).timeLimit.duration
-        : cpuSettingsFor(_mode).timeLimit;
-    _remaining = _limit;
-    _deadline = null;
+    _timer.reset(
+      _mode.isTwoPlayer
+          ? ref.read(appSettingsProvider).timeLimit.duration
+          : cpuSettingsFor(_mode).timeLimit,
+    );
     _phase = PlayPhase.countdown;
-    _suspendedPhase = null;
+    _exitConfirming = false;
     _attacker = _target = null;
-    _pending = null;
-    _cpuSchedule = null;
-    _cpuMove = null;
+    _attack = null;
+    _cpuPlan = null;
     _result = null;
     _motion = Duration.zero;
     _countdownStarted = false;
-    _hit = false;
     _resultCommitted = false;
-    _lastTick = _clock.now();
-    unawaited(_audio.setPlaySuspended(true));
+    _resetTickClock();
+    unawaited(_audio.setPlaySuspended(_audioSuspensionOwner, true));
   }
 
-  /// The screen acknowledges its first frame after the route transition.
+  /// 画面遷移後の最初の描画完了を受け取り、カウントダウンを開始する
   void startCountdown(int operationId) {
     if (operationId != _operationId ||
         _phase != PlayPhase.countdown ||
@@ -175,198 +208,217 @@ class PlaySessionNotifier extends Notifier<PlayState> {
       return;
     }
     _countdownStarted = true;
-    _lastTick = _clock.now();
-    // 最初の「3」の表示開始とSE発火を同じ境界に揃える。
+    _resetTickClock();
+    // 最初の「3」の表示開始とSE発火を同じ境界に揃える
     unawaited(_audio.playCountdownCue(SoundEffect.countdown));
     _publish();
   }
 
-  /// 内部の可変フィールドを、画面へ公開する不変のPlayStateへ変換する。
+  /// 現在表示すべきカウントダウンの数字0は「スタート」
+  int get _countdownValue =>
+      (PlayTiming.countdownFrom -
+              (_motion.inMicroseconds ~/
+                  PlayTiming.countdownStep.inMicroseconds))
+          .clamp(0, PlayTiming.countdownFrom);
+
+  /// 内部の可変フィールドを、画面へ公開する不変のPlayStateへ変換する
   PlayState _snapshot() => PlayState(
     mode: _mode,
     session: _session,
-    phase: _phase,
-    remaining: _remaining,
-    countdown: (3 - _motion.inSeconds).clamp(0, 3),
+    phase: _exitConfirming ? PlayPhase.confirmingExit : _phase,
+    remaining: _timer.displayedRemaining,
+    countdown: _countdownValue,
     countdownStarted: _countdownStarted,
-    attackProgress: (_motion.inMicroseconds / 800000).clamp(0, 1),
+    attacking: _attack != null,
+    attackPaused: _attack != null && (!_foreground || _exitConfirming),
     operationId: _operationId,
     attacker: _attacker,
     target: _target,
     result: _result,
   );
-  void _publish() => state = _snapshot();
+  void _publish() {
+    state = _snapshot();
+    _scheduleTick();
+  }
+
+  /// 次にゲーム状態が変わる時刻だけを一度予約する描画フレームは
+  /// PlayScreen の AnimationController が担当する
+  void _scheduleTick() {
+    _scheduledTick?.cancel();
+    if (_isHalted) {
+      return;
+    }
+    final now = _clock.now();
+    Duration? delay;
+    if (_phase == PlayPhase.countdown) {
+      delay = _until(_motion, PlayTiming.countdownStep);
+    } else if (_phase == PlayPhase.attacking) {
+      delay = _motion < PlayTiming.attackHit
+          ? PlayTiming.attackHit - _motion
+          : PlayTiming.attack - _motion;
+    } else if (_cpuTurn) {
+      delay = _cpuPlan?.schedule.untilNext;
+    } else {
+      delay = _timer.untilNextDisplayUpdate(now);
+    }
+    if (delay == null) return;
+    _scheduledTick = Timer(delay.isNegative ? Duration.zero : delay, tick);
+  }
+
+  Duration _until(Duration elapsed, Duration interval) {
+    final remainder = elapsed.inMicroseconds % interval.inMicroseconds;
+    return remainder == 0 ? interval : interval - Duration(microseconds: remainder);
+  }
 
   void tick() {
     final now = _clock.now();
     final elapsed = now.difference(_lastTick);
     _lastTick = now;
-    // 背景中、カウントダウン開始前、モーダル中、終局後は進行を止める。
-    if (!_foreground ||
-        (_phase == PlayPhase.countdown && !_countdownStarted) ||
-        _phase == PlayPhase.confirmingExit ||
-        _phase == PlayPhase.finished) {
+    // 背景中、カウントダウン開始前、モーダル中、終局後は進行を止める
+    if (_isHalted) {
       return;
     }
     if (_phase == PlayPhase.selecting) {
       if (_cpuTurn) {
-        // CPU手番は人間用の制限時間ではなく、演出用スケジュールを進める。
-        _tickCpu(elapsed);
-        _publish();
+        // CPU手番は人間用の制限時間ではなく、演出用スケジュールを進める
+        if (_tickCpu(elapsed)) {
+          _publish();
+        } else {
+          _scheduleTick();
+        }
         return;
       }
-      final previous = _remaining;
+      final previous = _timer.displayedRemaining;
       _checkDeadline();
-      if (previous != _remaining || _result != null) _publish();
+      if (previous != _timer.displayedRemaining || _result != null) {
+        _publish();
+      } else {
+        _scheduleTick();
+      }
       return;
     }
     _motion += elapsed.isNegative ? Duration.zero : elapsed;
     if (_phase == PlayPhase.countdown) {
-      if (_motion >= const Duration(seconds: 4)) {
-        _beginTurn();
-        unawaited(_audio.setPlaySuspended(false));
-      } else if (state.countdown != (3 - _motion.inSeconds).clamp(0, 3)) {
-        // 数字が変わった瞬間だけ、表示と同期した即時SEを鳴らす。
-        unawaited(
-          _audio.playCountdownCue(
-            _motion.inSeconds == 3 ? SoundEffect.start : SoundEffect.countdown,
-          ),
-        );
-      }
+      _tickCountdown();
     } else if (_phase == PlayPhase.attacking) {
-      if (!_hit && _motion >= const Duration(milliseconds: 600)) {
-        _hit = true;
-        // 攻撃手が戻るまでは、画面上の手番を維持したまま着弾結果だけ反映する。
-        final next = _pending!.position;
-        _session = GameSession(
-          GamePosition(
-            nearHands: next.nearHands,
-            farHands: next.farHands,
-            turn: _session.position.turn,
-          ),
-          visitedPositions: _session.visitedPositions,
-        );
-        unawaited(_audio.play(SoundEffect.tapOk));
-      }
-      if (_motion >= const Duration(milliseconds: 800)) {
-        _session = _pending!;
-        _pending = null;
-        if (_session.result case final result?) {
-          _finish(result);
-        } else {
-          _beginTurn();
-        }
-      }
+      _tickAttack();
     }
     _publish();
+  }
+
+  void _tickCountdown() {
+    if (_motion >= PlayTiming.countdown) {
+      _beginTurn();
+      unawaited(_audio.setPlaySuspended(_audioSuspensionOwner, false));
+    } else if (state.countdown != _countdownValue) {
+      // 数字が変わった瞬間だけ、表示と同期した即時SEを鳴らす
+      unawaited(
+        _audio.playCountdownCue(
+          _countdownValue == 0 ? SoundEffect.start : SoundEffect.countdown,
+        ),
+      );
+    }
+  }
+
+  void _tickAttack() {
+    final attack = _attack!;
+    if (!attack.hit && _motion >= PlayTiming.attackHit) {
+      attack.hit = true;
+      // 攻撃手が戻るまでは、画面上の手番を維持したまま着弾結果だけ反映する
+      _session = attack.intermediateSession(_session);
+      unawaited(_audio.play(SoundEffect.tapOk));
+    }
+    if (_motion >= PlayTiming.attack) {
+      _session = attack.next;
+      _attack = null;
+      if (_session.result case final result?) {
+        _finish(result);
+      } else {
+        _beginTurn();
+      }
+    }
   }
 
   void _beginTurn() {
     _phase = PlayPhase.selecting;
     _attacker = _target = null;
     _motion = Duration.zero;
-    _remaining = _limit;
-    _deadline = _limit == null ? null : _clock.now().add(_limit!);
-    _cpuSchedule = null;
-    _cpuMove = null;
+    _timer.begin(_clock.now());
+    _cpuPlan = null;
     if (_cpuTurn) {
-      _deadline = null;
-      final random = ref.read(cpuRandomProvider);
-      // 非同期探索の完了時に、この対局の要求かどうかを照合する番号。
-      final request = ++_cpuRequest;
-      final move = ref.read(cpuStrategyProvider).chooseMove(_session, random);
-      if (move is GameMove) {
-        _acceptCpuMove(move, random);
-      } else {
-        unawaited(
-          move.then(
-            (selected) {
-              if (ref.mounted &&
-                  request == _cpuRequest &&
-                  _phase != PlayPhase.finished) {
-                _acceptCpuMove(selected, random);
-                _lastTick = _clock.now();
-              }
-            },
-            onError: (Object error, StackTrace stack) {
-              if (ref.mounted &&
-                  request == _cpuRequest &&
-                  _phase != PlayPhase.finished) {
-                _acceptCpuMove(_engine.legalMoves(_session).first, random);
-                _lastTick = _clock.now();
-              }
-            },
-          ),
-        );
-      }
+      _timer.pause();
+      _requestCpuMove();
     }
   }
 
-  void _acceptCpuMove(GameMove move, Random random) {
-    _cpuMove = move;
-    final cpu = cpuSettingsFor(_mode);
-    // 見た目だけの再選択。最終手は変えず、中間表示も必ず合法手にする。
-    final alternatives = _engine
-        .legalMoves(_session)
-        .where(
-          (m) =>
-              (m.attackerPosition == move.attackerPosition) !=
-              (m.targetPosition == move.targetPosition),
-        )
-        .toList();
-    final previews = <GameMove>[move];
-    for (var i = 0; alternatives.isNotEmpty && i < cpu.maxReselections; i++) {
-      if (random.nextDouble() >= cpu.reselectionChance) break;
-      final next = previews.first;
-      final options = alternatives
-          .where(
-            (m) =>
-                (m.attackerPosition == next.attackerPosition) !=
-                (m.targetPosition == next.targetPosition),
-          )
-          .toList();
-      if (options.isEmpty) break;
-      previews.insert(0, options[random.nextInt(options.length)]);
+  /// CPU戦略へ手を問い合わせる非同期の結果は、同じ手番の要求にだけ反映する
+  void _requestCpuMove() {
+    final random = ref.read(cpuRandomProvider);
+    final request = ++_cpuRequest;
+    final move = ref.read(cpuStrategyProvider).chooseMove(_session, random);
+    if (move is GameMove) {
+      _acceptCpuMove(move, random);
+      return;
     }
-    _cpuPreviews = previews;
-    _cpuSchedule = CpuScheduler(
-      interval: cpu.stepInterval,
-      operations: 2 + previews.length,
+    void accept(GameMove Function() pick) {
+      if (!ref.mounted ||
+          request != _cpuRequest ||
+          _phase == PlayPhase.finished) {
+        return;
+      }
+      _acceptCpuMove(pick(), random);
+      _resetTickClock();
+    }
+
+    unawaited(
+      move.then(
+        (selected) => accept(() => selected),
+        // 探索に失敗しても対局を止めず、最初の合法手で進める
+        onError: (Object error, StackTrace stackTrace) {
+          AppErrorHandler.recordHandled(
+            error,
+            stackTrace,
+            source: ErrorSource.gameplay,
+            message: 'CPU strategy failed; using the first legal move.',
+          );
+          accept(() => _engine.legalMoves(_session).first);
+        },
+      ),
     );
   }
 
-  void _tickCpu(Duration elapsed) {
-    if (_cpuMove == null) return;
-    final schedule = _cpuSchedule!;
+  void _acceptCpuMove(GameMove move, Random random) {
+    final cpu = cpuSettingsFor(_mode);
+    final previews = cpuPreviewMoves(_session, move, cpu, random);
+    _cpuPlan = _CpuPlan(
+      previews,
+      // 攻撃手、対象手、選び直しの表示、決定の順に1操作ずつ進める
+      CpuScheduler(interval: cpu.stepInterval, operations: 2 + previews.length),
+    );
+    _resetTickClock();
+    _scheduleTick();
+  }
+
+  bool _tickCpu(Duration elapsed) {
+    final plan = _cpuPlan;
+    if (plan == null) return false;
+    final schedule = plan.schedule;
     final ready = schedule.advance(elapsed);
-    _remaining = _limit! - schedule.elapsed;
-    if (!ready) return;
-    // stepごとに攻撃手、対象手、決定を順に画面へ見せる。
-    switch (schedule.step) {
-      case 1:
-        _attacker = _cpuPreviews.first.attackerPosition;
-        unawaited(_audio.play(SoundEffect.tapHand));
-      case 2:
-        _target = _cpuPreviews.first.targetPosition;
-        unawaited(_audio.play(SoundEffect.tapHand));
-      default:
-        if (schedule.step == schedule.operations) {
-          _confirmMove();
-        } else {
-          final preview = _cpuPreviews[schedule.step - 2];
-          _attacker = preview.attackerPosition;
-          _target = preview.targetPosition;
-          unawaited(_audio.play(SoundEffect.tapHand));
-        }
+    _timer.setElapsed(schedule.elapsed);
+    if (!ready) return false;
+    if (schedule.step == schedule.operations) {
+      _confirmMove();
+    } else if (plan.selectionAt(schedule.step) case final selection?) {
+      _attacker = selection.attacker;
+      _target = selection.target;
+      unawaited(_audio.play(SoundEffect.tapHand));
     }
+    return true;
   }
 
   bool _checkDeadline() {
-    if (_deadline == null) return false;
-    final left = _deadline!.difference(_clock.now());
-    _remaining = left.isNegative ? Duration.zero : left;
-    if (left <= Duration.zero) {
-      // 決定操作直前にもここを呼ぶため、遅延フレームでも時間切れを優先できる。
+    if (_timer.refresh(_clock.now())) {
+      // 決定操作直前にもここを呼ぶため、遅延フレームでも時間切れを優先できる
       _finish(
         GameResult(
           GameEndReason.timeout,
@@ -378,12 +430,18 @@ class PlaySessionNotifier extends Notifier<PlayState> {
     return false;
   }
 
-  void select(PlayerSide side, HandPosition hand) {
-    if (!_foreground || _phase != PlayPhase.selecting || _cpuTurn) return;
+  /// 人間の操作を受け付けられるか確認する時間切れならここで終局させる
+  bool _acceptsHumanInput() {
+    if (!_foreground || _phase != PlayPhase.selecting || _cpuTurn) return false;
     if (_checkDeadline()) {
       _publish();
-      return;
+      return false;
     }
+    return true;
+  }
+
+  void select(PlayerSide side, HandPosition hand) {
+    if (!_acceptsHumanInput()) return;
     if (_session.position.hands(side)[hand.index] == 0) return;
     if (side == _session.position.turn) {
       _attacker = hand;
@@ -395,25 +453,19 @@ class PlaySessionNotifier extends Notifier<PlayState> {
   }
 
   void confirm() {
-    if (!_foreground || _phase != PlayPhase.selecting || _cpuTurn) return;
-    if (_checkDeadline()) {
-      _publish();
-      return;
-    }
-    _confirmMove();
+    if (_acceptsHumanInput()) _confirmMove();
   }
 
   void _confirmMove() {
     if (_attacker == null || _target == null) return;
     final move = GameMove(_attacker!, _target!);
     if (!_engine.isLegalMove(_session, move)) return;
-    // 結果はすぐ確定せず、攻撃アニメーション終了時まで_pendingに保持する。
-    _pending = _engine.applyMove(_session, move);
+    // 結果はすぐ確定せず、攻撃アニメーション終了時まで保持する
+    _attack = _Attack(_engine.applyMove(_session, move));
     _phase = PlayPhase.attacking;
     _motion = Duration.zero;
-    _hit = false;
-    _deadline = null;
-    _lastTick = _clock.now();
+    _timer.pause();
+    _resetTickClock();
     _publish();
   }
 
@@ -424,31 +476,30 @@ class PlaySessionNotifier extends Notifier<PlayState> {
     }
     tick();
     if (_phase == PlayPhase.finished) return;
-    _suspendedPhase = _phase;
-    // 2人対戦では終了確認中に時間を止める。1人プレイ人間手番は止めない。
+    // 2人対戦では終了確認中に時間を止める1人プレイ人間手番は止めない
     if (_phase == PlayPhase.selecting &&
         _mode.pausesTimerForExit(_session.position.turn)) {
-      _deadline = null;
+      _timer.pause();
     }
-    _phase = PlayPhase.confirmingExit;
-    unawaited(_audio.setPlaySuspended(true));
+    _exitConfirming = true;
+    unawaited(_audio.setPlaySuspended(_audioSuspensionOwner, true));
     unawaited(_audio.play(SoundEffect.tapButton));
     _publish();
   }
 
   void cancelExit() {
-    if (_phase != PlayPhase.confirmingExit) return;
-    _phase = _suspendedPhase!;
-    _lastTick = _clock.now();
+    if (!_exitConfirming) return;
+    _exitConfirming = false;
+    _resetTickClock();
     if (_phase == PlayPhase.selecting &&
         !_cpuTurn &&
         _mode.pausesTimerForExit(_session.position.turn) &&
-        _remaining != null) {
-      _deadline = _lastTick.add(_remaining!);
+        _timer.remaining != null) {
+      _timer.resume(_lastTick);
     }
     unawaited(_audio.play(SoundEffect.tapButton));
     if (_phase == PlayPhase.selecting) _checkDeadline();
-    unawaited(_audio.setPlaySuspended(false));
+    unawaited(_audio.setPlaySuspended(_audioSuspensionOwner, false));
     _publish();
   }
 
@@ -456,23 +507,23 @@ class PlaySessionNotifier extends Notifier<PlayState> {
     if (_foreground == foreground) return;
     if (!foreground) tick();
     _foreground = foreground;
-    _lastTick = _clock.now();
+    _resetTickClock();
     if (foreground && _phase == PlayPhase.selecting) {
       _checkDeadline();
-      _publish();
     }
+    _publish();
   }
 
   void _finish(GameResult result) {
     _phase = PlayPhase.finished;
     _result = result;
-    _deadline = null;
+    _timer.pause();
     unawaited(_audio.playResult(_mode.resultSound(result)));
   }
 
   Future<void> commitResult() async {
     if (_phase == PlayPhase.finished && !_resultCommitted) {
-      // ホームとリトライの連打で、星の進捗を二重保存しない。
+      // ホームとリトライの連打で、星の進捗を二重保存しない
       _resultCommitted = true;
       final outcome = _result!.outcome;
       await ref
@@ -492,5 +543,122 @@ class PlaySessionNotifier extends Notifier<PlayState> {
     if (_phase != PlayPhase.finished || operationId != _operationId) return;
     _reset();
     _publish();
+  }
+}
+
+/// 攻撃アニメーション1回分の状態
+class _Attack {
+  _Attack(this.next);
+
+  /// 手を適用した後の対局アニメーション終了時に確定する
+  final GameSession next;
+
+  /// 着弾（相手の手の値の更新）を反映済みか
+  bool hit = false;
+
+  GameSession intermediateSession(GameSession current) {
+    final nextPosition = next.position;
+    return GameSession(
+      GamePosition(
+        nearHands: nextPosition.nearHands,
+        farHands: nextPosition.farHands,
+        turn: current.position.turn,
+        rules: nextPosition.rules,
+      ),
+      visitedPositions: current.visitedPositions,
+    );
+  }
+}
+
+/// CPU手番1回分の演出予定
+class _CpuPlan {
+  const _CpuPlan(this.previews, this.schedule);
+
+  /// 表示する手の順番末尾が実際に指す手
+  final List<GameMove> previews;
+  final CpuScheduler schedule;
+
+  _CpuSelection? selectionAt(int step) {
+    if (step == 1) {
+      final first = previews.first;
+      return _CpuSelection(first.attackerPosition, null);
+    }
+    if (step == 2) {
+      final first = previews.first;
+      return _CpuSelection(first.attackerPosition, first.targetPosition);
+    }
+    final previewIndex = step - 2;
+    return previewIndex < previews.length
+        ? _CpuSelection.fromMove(previews[previewIndex])
+        : null;
+  }
+}
+
+class _CpuSelection {
+  const _CpuSelection(this.attacker, this.target);
+  _CpuSelection.fromMove(GameMove move)
+      : attacker = move.attackerPosition,
+        target = move.targetPosition;
+
+  final HandPosition attacker;
+  final HandPosition? target;
+}
+
+/// 1手番の制限時間を管理する内部状態
+class _MatchTimer {
+  Duration? _limit;
+  Duration? _remaining;
+  DateTime? _deadline;
+
+  Duration? get remaining => _remaining;
+
+  /// UI に公開する値は表示が変わる秒単位に丸める
+  Duration? get displayedRemaining {
+    final remaining = _remaining;
+    if (remaining == null) return null;
+    return Duration(seconds: (remaining.inMilliseconds / 1000).ceil());
+  }
+
+  /// 表示秒が変わる境界、または期限そのものまでの待ち時間
+  Duration? untilNextDisplayUpdate(DateTime now) {
+    final deadline = _deadline;
+    if (deadline == null) return null;
+    final remaining = deadline.difference(now);
+    if (remaining <= Duration.zero) return Duration.zero;
+    final seconds = (remaining.inMilliseconds / 1000).ceil();
+    return remaining - Duration(seconds: seconds - 1);
+  }
+
+  void reset(Duration? limit) {
+    _limit = limit;
+    _remaining = limit;
+    _deadline = null;
+  }
+
+  void begin(DateTime now) {
+    _remaining = _limit;
+    _deadline = _limit == null ? null : now.add(_limit!);
+  }
+
+  /// 残り時間を保ったまま、時計の進行を止める
+  void pause() => _deadline = null;
+
+  void resume(DateTime now) {
+    if (_remaining != null) _deadline = now.add(_remaining!);
+  }
+
+  bool refresh(DateTime now) {
+    final deadline = _deadline;
+    if (deadline == null) return false;
+    final left = deadline.difference(now);
+    _remaining = left.isNegative ? Duration.zero : left;
+    return left <= Duration.zero;
+  }
+
+  void setElapsed(Duration elapsed) {
+    final limit = _limit;
+    if (limit == null) return;
+    final left = limit - elapsed;
+    _remaining = left.isNegative ? Duration.zero : left;
   }
 }

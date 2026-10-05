@@ -1,15 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../audio/audio_controller.dart';
 import '../../config/assets.dart';
 import '../../config/config.dart';
-import '../../settings/update_settings.dart';
+import '../../diagnostics/app_error_handler.dart';
+import '../../initialization/image_preloader.dart';
+import '../../settings/settings_notifier.dart';
 import '../widgets/tappable_image.dart';
 
-/// Hosts the nine rule pages and their shared navigation controls.
+/// 9ページのルール画像と共通ナビゲーションを表示する画面
 class RulesScreen extends ConsumerStatefulWidget {
   const RulesScreen({super.key});
 
@@ -21,12 +24,15 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
   static const _pages = Assets.rulePageNumbers;
 
   var _page = 0;
+  final _gifRevisions = <int, int>{};
   late final PageController _pageController;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
+    // ホーム以外から直接開かれた場合にも、表示画像を準備する。
+    unawaited(_preloadRuleScreenImages());
   }
 
   @override
@@ -44,8 +50,34 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
     );
   }
 
+  bool _isGifPage(int page) => page >= 3 && page <= 6;
+
+  Future<void> _preloadRuleScreenImages() async {
+    try {
+      final language = ref.read(appSettingsProvider).language;
+      await preloadRuleImages(context, language);
+    } catch (error, stackTrace) {
+      AppErrorHandler.recordHandled(
+        error,
+        stackTrace,
+        source: ErrorSource.assets,
+        message: 'Could not preload rule screen images.',
+      );
+    }
+  }
+
+  void _onPageChanged(int index) {
+    final page = _pages[index];
+    setState(() {
+      _page = index;
+      if (_isGifPage(page)) {
+        _gifRevisions[page] = (_gifRevisions[page] ?? 0) + 1;
+      }
+    });
+  }
+
   void _goHome() {
-    unawaited(ref.read(audioControllerProvider).play(SoundEffect.tapButton));
+    ref.playTapSound();
     Navigator.of(context).pop();
   }
 
@@ -55,17 +87,28 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
 
     return Scaffold(
       key: const Key('rulesScreen'),
+      // アプリ全体のScaffoldは透過設定のため、ページ画像の描画待ちでも
+      // 背面のホーム画面が見えないようルール画面は不透明にする。
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
           Positioned.fill(
             child: PageView.builder(
               controller: _pageController,
               itemCount: _pages.length,
-              onPageChanged: (page) => setState(() => _page = page),
-              itemBuilder: (_, index) => Image.asset(
-                Assets.rulesPage(_pages[index], language),
-                fit: BoxFit.cover,
-              ),
+              // 隣のページも先にレイアウトし、スワイプ開始時の描画待ちを減らす。
+              allowImplicitScrolling: true,
+              onPageChanged: _onPageChanged,
+              itemBuilder: (_, index) {
+                final page = _pages[index];
+                final asset = Assets.rulesPage(page, language);
+                return _isGifPage(page)
+                    ? _RestartingGif(
+                        asset: asset,
+                        revision: _gifRevisions[page] ?? 0,
+                      )
+                    : Image.asset(asset, fit: BoxFit.cover);
+              },
             ),
           ),
           Positioned(
@@ -88,7 +131,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
               height: 100,
               child: TappableImage(
                 key: const Key('rulesBackButton'),
-                asset: 'assets/rules/buttons/rules_back_page.png',
+                asset: Assets.rulesBackPage,
                 semanticLabel: AppStrings.previousPage(language),
                 onTap: () => _setPage(_page - 1),
               ),
@@ -101,13 +144,119 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
               height: 100,
               child: TappableImage(
                 key: const Key('rulesNextButton'),
-                asset: 'assets/rules/buttons/rules_next_page.png',
+                asset: Assets.rulesNextPage,
                 semanticLabel: AppStrings.nextPage(language),
                 onTap: () => _setPage(_page + 1),
               ),
             ),
         ],
       ),
+    );
+  }
+}
+
+/// 毎回新しいGIFデコーダーを使い、先頭フレームから再生する画像
+/// 新しい先頭フレームが描画されるまでは直前フレームを残すため、
+/// ページ送りの黒いちらつきが起きない
+class _RestartingGif extends StatefulWidget {
+  const _RestartingGif({required this.asset, required this.revision});
+
+  final String asset;
+  final int revision;
+
+  @override
+  State<_RestartingGif> createState() => _RestartingGifState();
+}
+
+class _RestartingGifState extends State<_RestartingGif> {
+  Uint8List? _sourceBytes;
+  Uint8List? _currentBytes;
+  Uint8List? _previousBytes;
+  var _request = 0;
+  var _previousRemovalQueued = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGif();
+  }
+
+  @override
+  void didUpdateWidget(covariant _RestartingGif oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.asset != widget.asset ||
+        oldWidget.revision != widget.revision) {
+      if (oldWidget.asset != widget.asset) _sourceBytes = null;
+      _loadGif();
+    }
+  }
+
+  Future<void> _loadGif() async {
+    if (_sourceBytes case final sourceBytes?) {
+      _showFreshGif(sourceBytes);
+      return;
+    }
+    try {
+      final request = ++_request;
+      final data = await rootBundle.load(widget.asset);
+      final sourceBytes = Uint8List.fromList(
+        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+      );
+      if (!mounted || request != _request) return;
+      _sourceBytes = sourceBytes;
+      _showFreshGif(sourceBytes);
+    } catch (error, stackTrace) {
+      AppErrorHandler.recordHandled(
+        error,
+        stackTrace,
+        source: ErrorSource.assets,
+        message: 'Could not load rule GIF: ${widget.asset}',
+      );
+    }
+  }
+
+  void _showFreshGif(Uint8List sourceBytes) {
+    final bytes = Uint8List.fromList(sourceBytes);
+    setState(() {
+      _previousBytes = _currentBytes;
+      _currentBytes = bytes;
+      _previousRemovalQueued = false;
+    });
+  }
+
+  void _removePreviousWhenReady(Uint8List bytes) {
+    if (_previousBytes == null || _previousRemovalQueued) return;
+    _previousRemovalQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && identical(_currentBytes, bytes)) {
+        setState(() => _previousBytes = null);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentBytes = _currentBytes;
+    if (currentBytes == null) {
+      // 初回デコードが済むまでPageViewの背面（黒）を見せない
+      return const ColoredBox(color: Colors.white);
+    }
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (_previousBytes case final previousBytes?)
+          Image.memory(previousBytes, fit: BoxFit.cover),
+        Image.memory(
+          currentBytes,
+          fit: BoxFit.cover,
+          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+            if (wasSynchronouslyLoaded || frame != null) {
+              _removePreviousWhenReady(currentBytes);
+            }
+            return child;
+          },
+        ),
+      ],
     );
   }
 }
