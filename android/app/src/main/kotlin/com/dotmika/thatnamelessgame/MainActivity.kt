@@ -1,4 +1,4 @@
-package com.example.that_nameless_game
+package com.dotmika.thatnamelessgame
 
 import io.flutter.embedding.android.FlutterActivity
 

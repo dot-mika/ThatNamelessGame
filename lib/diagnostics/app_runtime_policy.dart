@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart';
 
 /// アプリを動かしているビルド種別
@@ -15,10 +17,13 @@ abstract final class AppRuntimePolicy {
 
   static const isRelease = buildMode == AppBuildMode.release;
 
+  /// `flutter test` は `FLUTTER_TEST=true` を環境変数で渡す。
+  static final isAutomatedTest =
+      !kIsWeb && Platform.environment['FLUTTER_TEST'] == 'true';
+
   /// `--dart-define=TEST_ERROR_LOG=true` 指定時だけ、debugでログ収集を有効にする
   static const enableTestDiagnostics =
-      buildMode == AppBuildMode.debug &&
-      bool.fromEnvironment('TEST_ERROR_LOG');
+      buildMode == AppBuildMode.debug && bool.fromEnvironment('TEST_ERROR_LOG');
 
   /// テスト実行時にログへ付ける項目名指定しない場合は全項目を対象とする
   static const testItem = String.fromEnvironment(
@@ -28,9 +33,10 @@ abstract final class AppRuntimePolicy {
 
   /// エラー詳細を表示するかどうか
   static const showDeveloperErrorDetails = buildMode == AppBuildMode.debug;
-  
+
   /// エラー時にデバッガを停止するかどうか
-  static const pauseDebuggerOnError = buildMode == AppBuildMode.debug;
+  static final pauseDebuggerOnError =
+      buildMode == AppBuildMode.debug && !isAutomatedTest;
 
   /// リリースでは詳細を出さず、安全な復帰UIだけを出すための方針
   static const showReleaseRecoveryUi = isRelease;

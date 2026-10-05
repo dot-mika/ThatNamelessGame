@@ -138,6 +138,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen>
       await ref.read(audioControllerProvider).stopEffects();
       if (!mounted) return;
       controller.replay(id);
+      _queueCountdownStart();
     } finally {
       if (mounted) _committing = false;
     }
@@ -301,7 +302,7 @@ class _CountdownOverlay extends StatelessWidget {
             for (final near in [if (twoPlayer) false, true])
               Positioned(
                 left: layout.left,
-                top: near ? 510 : 50,
+                top: near ? 500 : 60,
                 width: layout.width,
                 height: _CountdownLayout.height,
                 child: RotatedBox(
@@ -588,7 +589,8 @@ class _TurnTimerDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Positioned(
     left: lowerControls ? 1073 : 103,
-    top: lowerControls ? 521 : 99,
+    // 「あなたのターン」ラベルの縦中央にタイマーを合わせる。
+    top: lowerControls ? 539 : 61,
     width: 104,
     height: 120,
     child: RotatedBox(

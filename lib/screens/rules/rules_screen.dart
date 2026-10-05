@@ -8,6 +8,7 @@ import '../../audio/audio_controller.dart';
 import '../../config/assets.dart';
 import '../../config/config.dart';
 import '../../diagnostics/app_error_handler.dart';
+import '../../initialization/image_preloader.dart';
 import '../../settings/settings_notifier.dart';
 import '../widgets/tappable_image.dart';
 
@@ -30,9 +31,8 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
   void initState() {
     super.initState();
     _pageController = PageController();
-    // GIFページへ移動する頃にはバイト列を用意済みにし、初回表示でも
-    // デコード待ちの黒い一瞬を出さない
-    unawaited(_preloadRuleGifs());
+    // ホーム以外から直接開かれた場合にも、表示画像を準備する。
+    unawaited(_preloadRuleScreenImages());
   }
 
   @override
@@ -52,19 +52,16 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
 
   bool _isGifPage(int page) => page >= 3 && page <= 6;
 
-  Future<void> _preloadRuleGifs() async {
+  Future<void> _preloadRuleScreenImages() async {
     try {
       final language = ref.read(appSettingsProvider).language;
-      await Future.wait([
-        for (final page in [3, 4, 5, 6])
-          rootBundle.load(Assets.rulesPage(page, language)),
-      ]);
+      await preloadRuleImages(context, language);
     } catch (error, stackTrace) {
       AppErrorHandler.recordHandled(
         error,
         stackTrace,
         source: ErrorSource.assets,
-        message: 'Could not preload rule GIFs.',
+        message: 'Could not preload rule screen images.',
       );
     }
   }
@@ -90,12 +87,17 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
 
     return Scaffold(
       key: const Key('rulesScreen'),
+      // アプリ全体のScaffoldは透過設定のため、ページ画像の描画待ちでも
+      // 背面のホーム画面が見えないようルール画面は不透明にする。
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
           Positioned.fill(
             child: PageView.builder(
               controller: _pageController,
               itemCount: _pages.length,
+              // 隣のページも先にレイアウトし、スワイプ開始時の描画待ちを減らす。
+              allowImplicitScrolling: true,
               onPageChanged: _onPageChanged,
               itemBuilder: (_, index) {
                 final page = _pages[index];

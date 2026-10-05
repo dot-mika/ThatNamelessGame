@@ -23,7 +23,6 @@ abstract final class Assets {
     'assets/home/',
     'assets/settings/',
     'assets/play/',
-    'assets/rules/',
   ];
 
   static String rulesPage(int page, AppLanguage language) {
@@ -31,6 +30,16 @@ abstract final class Assets {
     final extension = page >= 3 && page <= 6 ? '.gif' : '.png';
     return 'assets/rules/${language.name}/rules_${page}_${language.name}$extension';
   }
+
+  static bool isRuleGif(String asset) => asset.endsWith('.gif');
+
+  /// Rule-screen assets load when the rule screen opens, not at startup.
+  static List<String> ruleScreenImages(AppLanguage language) => [
+    rulesHome,
+    rulesBackPage,
+    rulesNextPage,
+    for (final page in rulePageNumbers) rulesPage(page, language),
+  ];
 
   /// 対局背景はファイル名に手番側の色コード（RRGGBB）を持つ
   static String playBackground(Color color) {

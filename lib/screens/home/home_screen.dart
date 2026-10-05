@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../audio/audio_controller.dart';
 import '../../config/assets.dart';
 import '../../config/config.dart';
+import '../../diagnostics/app_error_handler.dart';
+import '../../initialization/image_preloader.dart';
 import '../../play/play_mode.dart';
 import '../../play/play_session.dart';
 import '../../settings/settings_notifier.dart';
@@ -16,7 +18,8 @@ import '../settings/settings_screen.dart';
 import '../widgets/tappable_image.dart';
 
 /// モード選択、星の進捗、設定画面への入口を表示するホーム画面
-class HomeScreen extends ConsumerWidget { // StatelessWidget + Riverpod の ref が使えるWidget
+class HomeScreen extends ConsumerWidget {
+  // StatelessWidget + Riverpod の ref が使えるWidget
   const HomeScreen({super.key});
 
   @override
@@ -53,7 +56,7 @@ class HomeScreen extends ConsumerWidget { // StatelessWidget + Riverpod の ref 
               key: const Key('rulesButton'),
               asset: Assets.rules(language),
               semanticLabel: AppStrings.rules(language),
-              onTap: () => _openInstant(context, ref, const RulesScreen()),
+              onTap: () => _openRules(context, ref),
             ),
           ),
           Positioned(
@@ -110,13 +113,31 @@ class HomeScreen extends ConsumerWidget { // StatelessWidget + Riverpod の ref 
     );
   }
 
+  /// ルール画面は画像の準備を終えてから開き、ホーム画面の透過を防ぐ。
+  Future<void> _openRules(BuildContext context, WidgetRef ref) async {
+    ref.playTapSound();
+    try {
+      await preloadRuleImages(context, ref.read(appSettingsProvider).language);
+    } catch (error, stackTrace) {
+      AppErrorHandler.recordHandled(
+        error,
+        stackTrace,
+        source: ErrorSource.assets,
+        message: 'Could not preload rule screen images before navigation.',
+      );
+    }
+    if (!context.mounted) return;
+    await _openInstant(context, ref, const RulesScreen(), playSound: false);
+  }
+
   /// ルール・設定画面は対局状態を持たないため、Providerの上書きなしで即時に開く
   Future<void> _openInstant(
     BuildContext context,
     WidgetRef ref,
-    Widget page,
-  ) async {
-    ref.playTapSound();
+    Widget page, {
+    bool playSound = true,
+  }) async {
+    if (playSound) ref.playTapSound();
     await Navigator.of(context).push<void>(
       PageRouteBuilder<void>(
         pageBuilder: (_, _, _) => page,

@@ -126,12 +126,11 @@ void main() {
               image.dispose();
             });
           }
-          // A cosmetic reselection adds one visible CPU operation per retry.
-          for (var i = 0;
-              i < 3 + cpuSettingsFor(mode).maxReselections;
-              i++) {
-            clock.advance(10000);
-            await tester.pump(const Duration(milliseconds: 16));
+          // CPU の予約タイマーと FakeClock を同じ間隔で進める。
+          for (var i = 0; i < 3 + cpuSettingsFor(mode).maxReselections; i++) {
+            final step = cpuSettingsFor(mode).stepInterval;
+            clock.advance(step.inMilliseconds);
+            await tester.pump(step);
           }
           clock.advance(800);
           await tester.pump(const Duration(milliseconds: 800));

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../config/app_language.dart';
 import '../config/assets.dart';
 
 /// バンドルに登録された全画面の静止画像を、言語を問わず先読みする
@@ -40,6 +41,24 @@ Future<void> preloadAllImages(BuildContext context) async {
     }
   }
   await Future.wait(batch);
+}
+
+/// Loads the selected language's rule images and GIF bytes when opened.
+Future<void> preloadRuleImages(
+  BuildContext context,
+  AppLanguage language,
+) async {
+  final bundle = DefaultAssetBundle.of(context);
+  final configuration = createLocalImageConfiguration(context);
+  final assets = Assets.ruleScreenImages(language);
+
+  await Future.wait([
+    for (final asset in assets)
+      if (Assets.isRuleGif(asset)) bundle.load(asset) else _loadImage(
+        Assets.image(asset, bundle: bundle),
+        configuration,
+      ),
+  ]);
 }
 
 Future<void> _loadImage(
