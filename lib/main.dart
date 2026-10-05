@@ -10,7 +10,6 @@ import 'diagnostics/test_error_logger.dart';
 import 'initialization/bootstrap.dart';
 import 'screens/home/home_screen.dart';
 
-
 /// アプリの入口Flutter初期化、例外ハンドラ登録、画面向き固定、起動前準備Widgetの表示を行う
 Future<void> main() async {
   // runAppより前に使えるようにする
@@ -27,10 +26,9 @@ Future<void> main() async {
   // 非同期処理など、ルートIsolateで未処理になった例外を受け取る
   PlatformDispatcher.instance.onError = AppErrorHandler.onPlatformError;
 
-  // 画面を横向きに固定する
+  // 充電端子を右にした横向きへ固定し、逆向きには回転させない
   await SystemChrome.setPreferredOrientations(const [
     DeviceOrientation.landscapeLeft,
-    DeviceOrientation.landscapeRight,
   ]);
 
   // ステータスバーとナビゲーションバーを隠す
@@ -39,7 +37,6 @@ Future<void> main() async {
   // アプリを起動
   runApp(const Bootstrap(child: ThatNamelessGame()));
 }
-
 
 /// アプリ共通テーマと1280×720の論理キャンバスを提供するルートWidget
 class ThatNamelessGame extends StatelessWidget {
@@ -70,7 +67,8 @@ class ThatNamelessGame extends StatelessWidget {
             child: SizedBox(
               width: AppConfig.canvasWidth, // 1280
               height: AppConfig.canvasHeight, // 720
-              child: ReleaseRecoveryOverlay( // 例外発生時に再起動を促す全画面表示を重ねる
+              child: ReleaseRecoveryOverlay(
+                // 例外発生時に再起動を促す全画面表示を重ねる
                 // release では復旧表示を重ねるための土台だけを残す
                 child: child ?? const SizedBox.shrink(),
               ),

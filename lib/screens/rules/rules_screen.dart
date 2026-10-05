@@ -1,5 +1,4 @@
-import 'dart:async';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,7 +7,6 @@ import '../../audio/audio_controller.dart';
 import '../../config/assets.dart';
 import '../../config/config.dart';
 import '../../diagnostics/app_error_handler.dart';
-import '../../initialization/image_preloader.dart';
 import '../../settings/settings_notifier.dart';
 import '../widgets/tappable_image.dart';
 
@@ -30,9 +28,11 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('RULES: screen initState');
     _pageController = PageController();
-    // ホーム以外から直接開かれた場合にも、表示画像を準備する。
-    unawaited(_preloadRuleScreenImages());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) debugPrint('RULES: first frame rendered');
+    });
   }
 
   @override
@@ -42,6 +42,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
   }
 
   void _setPage(int page) {
+    debugPrint('RULES: _setPage($page)');
     if (page < 0 || page >= _pages.length || page == _page) return;
     _pageController.animateToPage(
       page,
@@ -51,20 +52,6 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
   }
 
   bool _isGifPage(int page) => page >= 3 && page <= 6;
-
-  Future<void> _preloadRuleScreenImages() async {
-    try {
-      final language = ref.read(appSettingsProvider).language;
-      await preloadRuleImages(context, language);
-    } catch (error, stackTrace) {
-      AppErrorHandler.recordHandled(
-        error,
-        stackTrace,
-        source: ErrorSource.assets,
-        message: 'Could not preload rule screen images.',
-      );
-    }
-  }
 
   void _onPageChanged(int index) {
     final page = _pages[index];
@@ -77,6 +64,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
   }
 
   void _goHome() {
+    debugPrint('RULES: home tapped');
     ref.playTapSound();
     Navigator.of(context).pop();
   }
@@ -90,66 +78,74 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
       // アプリ全体のScaffoldは透過設定のため、ページ画像の描画待ちでも
       // 背面のホーム画面が見えないようルール画面は不透明にする。
       backgroundColor: Colors.white,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: PageView.builder(
-              controller: _pageController,
-              itemCount: _pages.length,
-              // 隣のページも先にレイアウトし、スワイプ開始時の描画待ちを減らす。
-              allowImplicitScrolling: true,
-              onPageChanged: _onPageChanged,
-              itemBuilder: (_, index) {
-                final page = _pages[index];
-                final asset = Assets.rulesPage(page, language);
-                return _isGifPage(page)
-                    ? _RestartingGif(
-                        asset: asset,
-                        revision: _gifRevisions[page] ?? 0,
-                      )
-                    : Image.asset(asset, fit: BoxFit.cover);
-              },
-            ),
-          ),
-          Positioned(
-            top: 20,
-            right: 20,
-            width: 100,
-            height: 100,
-            child: TappableImage(
-              key: const Key('rulesHomeButton'),
-              asset: Assets.rulesHome,
-              semanticLabel: AppStrings.home(language),
-              onTap: _goHome,
-            ),
-          ),
-          if (_page > 0)
-            Positioned(
-              left: 20,
-              bottom: 20,
-              width: 100,
-              height: 100,
-              child: TappableImage(
-                key: const Key('rulesBackButton'),
-                asset: Assets.rulesBackPage,
-                semanticLabel: AppStrings.previousPage(language),
-                onTap: () => _setPage(_page - 1),
+      body: Listener(
+        onPointerDown: (event) {
+          debugPrint('RULES: pointer down at ${event.position}');
+        },
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: PageView.builder(
+                controller: _pageController,
+                itemCount: _pages.length,
+                // 隣のページも先にレイアウトし、スワイプ開始時の描画待ちを減らす。
+                allowImplicitScrolling: true,
+                onPageChanged: (index) {
+                  debugPrint('RULES: page changed -> $index');
+                  _onPageChanged(index);
+                },
+                itemBuilder: (_, index) {
+                  final page = _pages[index];
+                  final asset = Assets.rulesPage(page, language);
+                  return _isGifPage(page)
+                      ? _RestartingGif(
+                          asset: asset,
+                          revision: _gifRevisions[page] ?? 0,
+                        )
+                      : Image.asset(asset, fit: BoxFit.cover);
+                },
               ),
             ),
-          if (_page < _pages.length - 1)
             Positioned(
+              top: 20,
               right: 20,
-              bottom: 20,
               width: 100,
               height: 100,
               child: TappableImage(
-                key: const Key('rulesNextButton'),
-                asset: Assets.rulesNextPage,
-                semanticLabel: AppStrings.nextPage(language),
-                onTap: () => _setPage(_page + 1),
+                key: const Key('rulesHomeButton'),
+                asset: Assets.rulesHome,
+                semanticLabel: AppStrings.home(language),
+                onTap: _goHome,
               ),
             ),
-        ],
+            if (_page > 0)
+              Positioned(
+                left: 20,
+                bottom: 20,
+                width: 100,
+                height: 100,
+                child: TappableImage(
+                  key: const Key('rulesBackButton'),
+                  asset: Assets.rulesBackPage,
+                  semanticLabel: AppStrings.previousPage(language),
+                  onTap: () => _setPage(_page - 1),
+                ),
+              ),
+            if (_page < _pages.length - 1)
+              Positioned(
+                right: 20,
+                bottom: 20,
+                width: 100,
+                height: 100,
+                child: TappableImage(
+                  key: const Key('rulesNextButton'),
+                  asset: Assets.rulesNextPage,
+                  semanticLabel: AppStrings.nextPage(language),
+                  onTap: () => _setPage(_page + 1),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
