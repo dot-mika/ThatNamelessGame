@@ -115,10 +115,14 @@ class HomeScreen extends ConsumerWidget {
 
   /// ルール画面は画像の準備を終えてから開き、ホーム画面の透過を防ぐ。
   Future<void> _openRules(BuildContext context, WidgetRef ref) async {
+    debugPrint('RULES: open start');
     ref.playTapSound();
     try {
+      debugPrint('RULES: preload start');
       await preloadRuleImages(context, ref.read(appSettingsProvider).language);
+      debugPrint('RULES: preload finished');
     } catch (error, stackTrace) {
+      debugPrint('RULES: preload error: $error');
       AppErrorHandler.recordHandled(
         error,
         stackTrace,
@@ -126,8 +130,10 @@ class HomeScreen extends ConsumerWidget {
         message: 'Could not preload rule screen images before navigation.',
       );
     }
+    debugPrint('RULES: before navigation');
     if (!context.mounted) return;
     await _openInstant(context, ref, const RulesScreen(), playSound: false);
+    debugPrint('RULES: returned from rules screen');
   }
 
   /// ルール・設定画面は対局状態を持たないため、Providerの上書きなしで即時に開く
