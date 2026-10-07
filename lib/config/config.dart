@@ -140,9 +140,9 @@ abstract final class RuleStrings {
     l,
     const [
       '②自分のターンの時',
-      '「{自分のどの手から}」 「{相手のどの手に}」手をたたくかを選び、',
-      '「{けってい}」を押します',
-      '（制限時間以内に手を選ばないと負けになるので注意！）',
+      '　「{自分のどの手から}」「{相手のどの手に}」手をたたくかを選び、',
+      '　「{けってい}」を押します',
+      '　（制限時間以内に手を選ばないと負けになるので注意！）',
     ],
     const [
       '②On your turn, “{choose one of your hands}” and',
@@ -154,7 +154,7 @@ abstract final class RuleStrings {
 
   static List<String> page4(AppLanguage l) => _pick(
     l,
-    const ['③選んだ手について、自分の指の本数が、', '相手の指の本数に足されます'],
+    const ['③選んだ手について、自分の指の本数が、', '　相手の指の本数に足されます'],
     const [
       '③For the selected hands, the number of fingers on',
       'your hand will be added to the number of fingers on',
@@ -166,9 +166,9 @@ abstract final class RuleStrings {
     l,
     const [
       '④相手のターンの時',
-      '相手の手のうちどれか１本の指の本数が',
-      '自分の手のうちどれか１本に加えられます',
-      'どの手からどの手に足すかは相手が決めます',
+      '　相手の手のうちどれか１本の指の本数が',
+      '　自分の手のうちどれか１本に加えられます',
+      '　どの手からどの手に足すかは相手が決めます',
     ],
     const [
       '④On your opponent\'s turn, the number of fingers',
@@ -259,8 +259,6 @@ enum SoundEffect {
   tapHand,
   win,
   tapOk,
-
-  /// 「3・2・1・スタート」を1つにまとめた音　間隔がずれないよう一度だけ鳴らす
   countdown,
   draw,
   lose;
