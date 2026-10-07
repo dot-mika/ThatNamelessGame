@@ -225,7 +225,7 @@ void main() {
     },
   );
   test(
-    'countdown plays three beeps then start, with BGM paused until play',
+    'countdown plays one combined cue, with BGM paused until play',
     () async {
       final events = <String>[];
       final bgm = FakeAudioPlayer()
@@ -239,16 +239,9 @@ void main() {
         ..onResume = () async {
           events.add('countdown');
         };
-      final start = FakeAudioPlayer()
-        ..onResume = () async {
-          events.add('start');
-        };
       final audio = AudioController.withPlayers(
         bgmPlayer: bgm,
-        effectPlayers: {
-          SoundEffect.countdown: countdown,
-          SoundEffect.start: start,
-        },
+        effectPlayers: {SoundEffect.countdown: countdown},
       );
       addTearDown(audio.dispose);
       await audio.setBgmEnabled(true);
@@ -260,17 +253,35 @@ void main() {
         advance(PlayTiming.countdownStep.inMilliseconds);
         await audio.setForeground(true);
       }
-      expect(events, [
-        'bgm pause',
-        'countdown',
-        'countdown',
-        'countdown',
-        'start',
-        'bgm resume',
-      ]);
+      // 3・2・1・スタートは1つの音なので、途中で鳴らし直さない
+      expect(events, ['bgm pause', 'countdown', 'bgm resume']);
       expect(state().phase, PlayPhase.selecting);
     },
   );
+  test('countdown cue pauses in the background and resumes with it', () async {
+    final events = <String>[];
+    final countdown = FakeAudioPlayer()
+      ..onResume = () async {
+        events.add('resume');
+      }
+      ..onPause = () async {
+        events.add('pause');
+      };
+    final audio = AudioController.withPlayers(
+      effectPlayers: {SoundEffect.countdown: countdown},
+    );
+    addTearDown(audio.dispose);
+    await setup(audio: audio);
+    await audio.setForeground(true); // Drain the initial countdown cue.
+    advance(500);
+    controller.setForeground(false);
+    await audio.setForeground(false);
+    advance(20000);
+    controller.setForeground(true);
+    await audio.setForeground(true);
+    expect(events, ['resume', 'pause', 'resume']);
+    expect(state().countdown, 3);
+  });
   test('deadline wins over confirm even before a timer callback', () async {
     await setup();
     advance(PlayTiming.countdown.inMilliseconds);

@@ -1,14 +1,12 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../audio/audio_controller.dart';
 import '../../config/assets.dart';
 import '../../config/config.dart';
-import '../../diagnostics/app_error_handler.dart';
 import '../../settings/settings_notifier.dart';
 import '../widgets/tappable_image.dart';
+import 'rule_animations.dart';
 
 /// 9ページのルール画像と共通ナビゲーションを表示する画面
 class RulesScreen extends ConsumerStatefulWidget {
@@ -22,13 +20,14 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
   static const _pages = Assets.rulePageNumbers;
 
   var _page = 0;
-  final _gifRevisions = <int, int>{};
+
+  /// スクロールが止まり、画面がぴったり表示しているページ
+  var _settledPage = 0;
   late final PageController _pageController;
 
   @override
   void initState() {
     super.initState();
-    debugPrint('RULES: screen initState');
     _pageController = PageController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) debugPrint('RULES: first frame rendered');
@@ -42,7 +41,6 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
   }
 
   void _setPage(int page) {
-    debugPrint('RULES: _setPage($page)');
     if (page < 0 || page >= _pages.length || page == _page) return;
     _pageController.animateToPage(
       page,
@@ -51,16 +49,21 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
     );
   }
 
-  bool _isGifPage(int page) => page >= 3 && page <= 6;
-
   void _onPageChanged(int index) {
-    final page = _pages[index];
-    setState(() {
-      _page = index;
-      if (_isGifPage(page)) {
-        _gifRevisions[page] = (_gifRevisions[page] ?? 0) + 1;
-      }
-    });
+    setState(() => _page = index);
+  }
+
+  /// スワイプやボタン操作のスクロールが止まった時だけ、表示ページを確定する
+  bool _onScroll(ScrollNotification notification) {
+    if (notification is! ScrollEndNotification || notification.depth != 0) {
+      return false;
+    }
+    final page = _pageController.page;
+    if (page == null || (page - page.round()).abs() > 0.01) return false;
+    if (page.round() != _settledPage) {
+      setState(() => _settledPage = page.round());
+    }
+    return false;
   }
 
   void _goHome() {
@@ -85,25 +88,41 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
         child: Stack(
           children: [
             Positioned.fill(
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: _pages.length,
-                // 隣のページも先にレイアウトし、スワイプ開始時の描画待ちを減らす。
-                allowImplicitScrolling: true,
-                onPageChanged: (index) {
-                  debugPrint('RULES: page changed -> $index');
-                  _onPageChanged(index);
-                },
-                itemBuilder: (_, index) {
-                  final page = _pages[index];
-                  final asset = Assets.rulesPage(page, language);
-                  return _isGifPage(page)
-                      ? _RestartingGif(
-                          asset: asset,
-                          revision: _gifRevisions[page] ?? 0,
-                        )
-                      : Image.asset(asset, fit: BoxFit.cover);
-                },
+              child: NotificationListener<ScrollNotification>(
+                onNotification: _onScroll,
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemCount: _pages.length,
+                  // 隣のページも先にレイアウトし、スワイプ開始時の描画待ちを減らす。
+                  allowImplicitScrolling: true,
+                  onPageChanged: (index) {
+                    debugPrint('RULES: page changed -> $index');
+                    _onPageChanged(index);
+                  },
+                  itemBuilder: (_, index) {
+                    final page = _pages[index];
+                    if (RuleAnimationPage.supports(page)) {
+                      // 隣のページも先に構築されるため、画面が止まったページだけ再生する
+                      return RuleAnimationPage(
+                        key: ValueKey(page),
+                        page: page,
+                        language: language,
+                        isActive: index == _settledPage,
+                      );
+                    }
+                    if (RuleStillPage.supports(page)) {
+                      return RuleStillPage(
+                        key: ValueKey(page),
+                        page: page,
+                        language: language,
+                      );
+                    }
+                    return Image.asset(
+                      Assets.rulesPage(page, language),
+                      fit: BoxFit.cover,
+                    );
+                  },
+                ),
               ),
             ),
             Positioned(
@@ -147,112 +166,6 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// 毎回新しいGIFデコーダーを使い、先頭フレームから再生する画像
-/// 新しい先頭フレームが描画されるまでは直前フレームを残すため、
-/// ページ送りの黒いちらつきが起きない
-class _RestartingGif extends StatefulWidget {
-  const _RestartingGif({required this.asset, required this.revision});
-
-  final String asset;
-  final int revision;
-
-  @override
-  State<_RestartingGif> createState() => _RestartingGifState();
-}
-
-class _RestartingGifState extends State<_RestartingGif> {
-  Uint8List? _sourceBytes;
-  Uint8List? _currentBytes;
-  Uint8List? _previousBytes;
-  var _request = 0;
-  var _previousRemovalQueued = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadGif();
-  }
-
-  @override
-  void didUpdateWidget(covariant _RestartingGif oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.asset != widget.asset ||
-        oldWidget.revision != widget.revision) {
-      if (oldWidget.asset != widget.asset) _sourceBytes = null;
-      _loadGif();
-    }
-  }
-
-  Future<void> _loadGif() async {
-    if (_sourceBytes case final sourceBytes?) {
-      _showFreshGif(sourceBytes);
-      return;
-    }
-    try {
-      final request = ++_request;
-      final data = await rootBundle.load(widget.asset);
-      final sourceBytes = Uint8List.fromList(
-        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
-      );
-      if (!mounted || request != _request) return;
-      _sourceBytes = sourceBytes;
-      _showFreshGif(sourceBytes);
-    } catch (error, stackTrace) {
-      AppErrorHandler.recordHandled(
-        error,
-        stackTrace,
-        source: ErrorSource.assets,
-        message: 'Could not load rule GIF: ${widget.asset}',
-      );
-    }
-  }
-
-  void _showFreshGif(Uint8List sourceBytes) {
-    final bytes = Uint8List.fromList(sourceBytes);
-    setState(() {
-      _previousBytes = _currentBytes;
-      _currentBytes = bytes;
-      _previousRemovalQueued = false;
-    });
-  }
-
-  void _removePreviousWhenReady(Uint8List bytes) {
-    if (_previousBytes == null || _previousRemovalQueued) return;
-    _previousRemovalQueued = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && identical(_currentBytes, bytes)) {
-        setState(() => _previousBytes = null);
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final currentBytes = _currentBytes;
-    if (currentBytes == null) {
-      // 初回デコードが済むまでPageViewの背面（黒）を見せない
-      return const ColoredBox(color: Colors.white);
-    }
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        if (_previousBytes case final previousBytes?)
-          Image.memory(previousBytes, fit: BoxFit.cover),
-        Image.memory(
-          currentBytes,
-          fit: BoxFit.cover,
-          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-            if (wasSynchronouslyLoaded || frame != null) {
-              _removePreviousWhenReady(currentBytes);
-            }
-            return child;
-          },
-        ),
-      ],
     );
   }
 }

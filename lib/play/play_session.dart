@@ -27,7 +27,8 @@ abstract final class PlayTiming {
   /// カウントダウンの最初の数字
   static const countdownFrom = 3;
 
-  /// 「3・2・1・スタート」それぞれの表示とSE開始の間隔
+  /// 「3・2・1・スタート」それぞれの表示の間隔
+  /// カウントダウン音（countdown_start.mp3）も1秒ごとに鳴るよう作ってある
   static const countdownStep = Duration(seconds: 1);
 
   /// 「3・2・1・スタート」を同じ間隔ずつ表示する合計時間
@@ -209,7 +210,7 @@ class PlaySessionNotifier extends Notifier<PlayState> {
     }
     _countdownStarted = true;
     _resetTickClock();
-    // 最初の「3」の表示開始とSE発火を同じ境界に揃える
+    // 最初の「3」の表示開始に合わせて、3・2・1・スタートの音を一度だけ鳴らす
     unawaited(_audio.playCountdownCue(SoundEffect.countdown));
     _publish();
   }
@@ -310,13 +311,6 @@ class PlaySessionNotifier extends Notifier<PlayState> {
     if (_motion >= PlayTiming.countdown) {
       _beginTurn();
       unawaited(_audio.setPlaySuspended(_audioSuspensionOwner, false));
-    } else if (state.countdown != _countdownValue) {
-      // 数字が変わった瞬間だけ、表示と同期した即時SEを鳴らす
-      unawaited(
-        _audio.playCountdownCue(
-          _countdownValue == 0 ? SoundEffect.start : SoundEffect.countdown,
-        ),
-      );
     }
   }
 
@@ -508,6 +502,10 @@ class PlaySessionNotifier extends Notifier<PlayState> {
     if (!foreground) tick();
     _foreground = foreground;
     _resetTickClock();
+    if (_phase == PlayPhase.countdown && _countdownStarted) {
+      // 背景中はカウントダウン表示が止まるため、音も同じ位置で止める
+      unawaited(_audio.setCountdownPaused(!foreground));
+    }
     if (foreground && _phase == PlayPhase.selecting) {
       _checkDeadline();
     }

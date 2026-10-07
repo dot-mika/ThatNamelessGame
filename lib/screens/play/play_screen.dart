@@ -277,7 +277,10 @@ class _PlayScreenState extends ConsumerState<PlayScreen>
 }
 
 /// 画面全体を暗くし、下の操作を受け付けないようにする背景
-const _dimBarrier = ModalBarrier(color: Color(0xB3000000), dismissible: false);
+const _dimBarrier = ModalBarrier(
+  color: AppColors.dimOverlay,
+  dismissible: false,
+);
 
 /// 開始前のカウントダウン2人プレイでは奥側にも反転して表示する
 class _CountdownOverlay extends StatelessWidget {
@@ -658,7 +661,7 @@ class _ExitConfirmation extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.dialogGray, width: 5),
+        border: Border.all(color: AppColors.black, width: 5),
       ),
       child: Stack(
         children: [
@@ -673,7 +676,7 @@ class _ExitConfirmation extends StatelessWidget {
               style: const TextStyle(
                   fontSize: 64,
                   height: 1,
-                  color: AppColors.dialogGray,
+                  color: AppColors.black,
                 ),
               ),
             ),
@@ -719,7 +722,7 @@ class _DialogButton extends StatelessWidget {
         height: 130,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: AppColors.dialogGray,
+          color: AppColors.black,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(

@@ -16,38 +16,52 @@ abstract final class Assets {
   static const rulesHome = 'assets/rules/buttons/rules_home.png';
   static const rulesBackPage = 'assets/rules/buttons/rules_back_page.png';
   static const rulesNextPage = 'assets/rules/buttons/rules_next_page.png';
+
+  /// ボタンを押した瞬間を表す集中線（rules_3、rules_9）
+  static const rulesSyuchusen = 'assets/rules/syuchusenn.png';
   static const rulePageNumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+  /// 画像ではなくコードで描くルールページ（3〜6はアニメーション）
+  static const codeRulePageNumbers = [2, 3, 4, 5, 6, 7, 8, 9];
 
   /// 起動時に先読みする画面画像のディレクトリ
   static const screenImageDirectories = [
     'assets/home/',
     'assets/settings/',
     'assets/play/',
+    'assets/rules/',
   ];
 
   static String rulesPage(int page, AppLanguage language) {
-    assert(rulePageNumbers.contains(page));
-    final extension = page >= 3 && page <= 6 ? '.gif' : '.png';
-    return 'assets/rules/${language.name}/rules_${page}_${language.name}$extension';
+    assert(
+      rulePageNumbers.contains(page) && !codeRulePageNumbers.contains(page),
+    );
+    return 'assets/rules/rules_${page}_${language.name}.png';
   }
 
-  static bool isRuleGif(String asset) => asset.endsWith('.gif');
+  /// 対局背景はファイル名に手番側の色名（green、blueなど）を持つ
+  static String playBackground(Color color) =>
+      'assets/play/backgrounds/play_background_${_colorName(color)}.png';
 
-  /// Rule-screen assets load when the rule screen opens, not at startup.
-  static List<String> ruleScreenImages(AppLanguage language) => [
-    rulesHome,
-    rulesBackPage,
-    rulesNextPage,
-    for (final page in rulePageNumbers) rulesPage(page, language),
-  ];
+  /// ルール画面の背景　対局背景にない赤だけルール画面用の画像を使う
+  static String ruleBackground(Color color) => color == AppColors.red
+      ? 'assets/rules/background_red.png'
+      : playBackground(color);
 
-  /// 対局背景はファイル名に手番側の色コード（RRGGBB）を持つ
-  static String playBackground(Color color) {
-    final rgb = (color.toARGB32() & 0xFFFFFF)
-        .toRadixString(16)
-        .padLeft(6, '0')
-        .toUpperCase();
-    return 'assets/play/backgrounds/play_background_$rgb.png';
+  /// AppColorsの基本の色を、背景画像のファイル名に使う色名へ変換する
+  static String _colorName(Color color) {
+    const names = {
+      'green': AppColors.green,
+      'blue': AppColors.blue,
+      'purple': AppColors.purple,
+      'pink': AppColors.pink,
+      'yellow': AppColors.yellow,
+      'gray': AppColors.gray,
+    };
+    for (final MapEntry(:key, :value) in names.entries) {
+      if (value == color) return key;
+    }
+    throw ArgumentError.value(color, 'color', 'No background image for color');
   }
 
   static String hand(int value, bool selected) =>
@@ -64,7 +78,8 @@ abstract final class Assets {
     final provider = AssetImage(asset, bundle: bundle);
     if (asset == backgroundRainbow ||
         asset == settingsBackground ||
-        asset.startsWith('assets/play/backgrounds/')) {
+        asset.startsWith('assets/play/backgrounds/') ||
+        asset.startsWith('assets/rules/background_')) {
       return ResizeImage.resizeIfNeeded(
         AppConfig.canvasWidth.toInt(),
         AppConfig.canvasHeight.toInt(),
@@ -92,8 +107,7 @@ abstract final class Assets {
   static const seTapHand = 'audio/se/tap_hand.mp3';
   static const seWin = 'audio/se/win.mp3';
   static const seTapOk = 'audio/se/tap_ok.mp3';
-  static const seCountdown = 'audio/se/countdown.mp3';
-  static const seStart = 'audio/se/start.mp3';
+  static const seCountdown = 'audio/se/countdown_start.mp3';
   static const seDraw = 'audio/se/draw.mp3';
   static const seLose = 'audio/se/lose.mp3';
 
@@ -104,7 +118,6 @@ abstract final class Assets {
     SoundEffect.win => seWin,
     SoundEffect.tapOk => seTapOk,
     SoundEffect.countdown => seCountdown,
-    SoundEffect.start => seStart,
     SoundEffect.draw => seDraw,
     SoundEffect.lose => seLose,
   };
