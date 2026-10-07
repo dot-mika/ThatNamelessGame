@@ -38,6 +38,7 @@ class AudioController {
   // 別に到着順で直列化する
   final _countdownCommands = _AudioCommandQueue();
   int _countdownGeneration = 0;
+  bool _countdownPaused = false;
   Future<void>? _disposal;
   final _disposeRequested = Completer<void>();
 
@@ -229,10 +230,39 @@ class AudioController {
     SoundEffect effect,
     int generation,
   ) async {
+    _countdownPaused = false;
     await _restartCue(
       effect,
       isCurrent: () => generation == _countdownGeneration,
     );
+  }
+
+  /// カウントダウン表示が止まっている間は音も止め、再開時に続きから鳴らす
+  Future<void> setCountdownPaused(bool paused) {
+    if (_disposed) return Future<void>.value();
+    final generation = _countdownGeneration;
+    return _countdownCommands.enqueue(() async {
+      if (_disposed || generation != _countdownGeneration) return;
+      final player = _effectPlayers[SoundEffect.countdown];
+      if (player == null || paused == _countdownPaused) return;
+      try {
+        if (paused) {
+          await player.pause();
+          _countdownPaused = true;
+        } else {
+          _countdownPaused = false;
+          // 前景状態の通知順に関わらず、表示の再開に合わせて鳴らす
+          if (_seEnabled) await player.resume();
+        }
+      } catch (error, stackTrace) {
+        AppErrorHandler.recordHandled(
+          error,
+          stackTrace,
+          source: ErrorSource.audio,
+          message: 'Could not pause or resume the countdown.',
+        );
+      }
+    });
   }
 
   Future<void> _restartCue(
@@ -316,6 +346,7 @@ class AudioController {
   Future<void> stopEffects() async {
     if (_disposed) return;
     _countdownGeneration++;
+    _countdownPaused = false;
     final stopped = _resultStopped;
     if (stopped != null && !stopped.isCompleted) stopped.complete();
     await _enqueue(() async {
