@@ -29,9 +29,6 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
   void initState() {
     super.initState();
     _pageController = PageController();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) debugPrint('RULES: first frame rendered');
-    });
   }
 
   @override
@@ -67,7 +64,6 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
   }
 
   void _goHome() {
-    debugPrint('RULES: home tapped');
     ref.playTapSound();
     Navigator.of(context).pop();
   }
@@ -82,9 +78,6 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
       // 背面のホーム画面が見えないようルール画面は不透明にする。
       backgroundColor: Colors.white,
       body: Listener(
-        onPointerDown: (event) {
-          debugPrint('RULES: pointer down at ${event.position}');
-        },
         child: Stack(
           children: [
             Positioned.fill(
@@ -96,7 +89,6 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                   // 隣のページも先にレイアウトし、スワイプ開始時の描画待ちを減らす。
                   allowImplicitScrolling: true,
                   onPageChanged: (index) {
-                    debugPrint('RULES: page changed -> $index');
                     _onPageChanged(index);
                   },
                   itemBuilder: (_, index) {
