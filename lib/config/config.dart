@@ -183,7 +183,7 @@ abstract final class RuleStrings {
     const [
       '⑤手の本数が{ちょうど５本}になったら、',
       '　その手は{それ以降使えなくなります}',
-      '　足した手が{６本以上}になる場合は、その数を５でわったあまりの数が',
+      '　足した手が６本以上になる場合は、その数から５をひいた数が',
       '　手の本数になります',
       '　（足して{６}本になる場合→{１}本になる）',
       '　（足して{７}本になる場合→{２}本になる）',
@@ -192,8 +192,8 @@ abstract final class RuleStrings {
     const [
       '⑤When the number of fingers on a hand becomes',
       '{exactly 5}, that hand can {no longer be used}.',
-      'If the total becomes {6 or more}, divide the number by',
-      '5 and use the remainder.',
+      'If the total becomes 6 or more, subtract 5 from that',
+      'number to get the number of fingers on the hand.',
       '(Total of {6} fingers → Becomes {1})',
       '(Total of {7} fingers → Becomes {2})',
       '(Total of {8} fingers → Becomes {3})',
