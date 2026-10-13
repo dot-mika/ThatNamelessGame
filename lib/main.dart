@@ -26,10 +26,15 @@ Future<void> main() async {
   // 非同期処理など、ルートIsolateで未処理になった例外を受け取る
   PlatformDispatcher.instance.onError = AppErrorHandler.onPlatformError;
 
-  // 充電端子を右にした横向きへ固定し、逆向きには回転させない
-  await SystemChrome.setPreferredOrientations(const [
-    DeviceOrientation.landscapeLeft,
-  ]);
+  // Android は従来どおり充電端子を右にした横向きへ固定する。iOS は
+  // Info.plist の全方向宣言と両立するよう、どちら向きの横持ちも許可する。
+  final orientations = defaultTargetPlatform == TargetPlatform.iOS
+      ? const [
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]
+      : const [DeviceOrientation.landscapeLeft];
+  await SystemChrome.setPreferredOrientations(orientations);
 
   // ステータスバーとナビゲーションバーを隠す
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
